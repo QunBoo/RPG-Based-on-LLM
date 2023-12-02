@@ -16,16 +16,19 @@ Fantastic Life奇妙人生是一个基于大语言模型的RPG游戏，在此游
 
 ## 部署方法
 
-未来可期
+### config
+/config/config_template.yaml 修改为 /config/config.yaml，并填写其中的配置信息
+
 
 
 ## TODO List
 
 * [X] 搭建基础框架Gin
-* [ ] 使用api调试，实现和百川模型的对话功能
+* [X] 使用api调试，实现和百川模型的对话功能，完成单次发送消息的函数
 
-  * [ ] 发送单次消息
-  * [ ] 完成多轮对话功能
+  * [X] 根据c *Gin.context发送单次消息
+  * [X] 完成多轮对话功能
+* [ ] 架构设计，模块化对话功能平面，维护多个Bot对象，每个Bot对象维护一个对话，并且有初始化对话和继续对话的功能
 * [ ] 缝合IM系统
 * [ ] logger
 * [ ] docker化
