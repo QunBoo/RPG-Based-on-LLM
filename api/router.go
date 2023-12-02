@@ -26,7 +26,7 @@ func (r *Router) Handler() http.Handler {
 					"message": "Hello, World!",
 				})
 			})
-			apiV1.POST("bot-chat", r.GptBotServer.BOTChat)
+			apiV1.POST("completions", r.GptBotServer.BOTChat)
 		}
 
 	}
