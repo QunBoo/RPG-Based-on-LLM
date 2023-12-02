@@ -21,11 +21,12 @@ func (r *Router) Handler() http.Handler {
 		apiV1 := engine.Group("api/v1")
 		{
 			apiV1.GET("/", func(c *gin.Context) {
+
 				c.JSON(200, gin.H{
 					"message": "Hello, World!",
 				})
 			})
-			apiV1.POST("bot-chat", r.GptBotServer.BOTChat)
+			apiV1.POST("completions", r.GptBotServer.BOTChat)
 		}
 
 	}

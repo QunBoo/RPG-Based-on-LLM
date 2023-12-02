@@ -8,7 +8,6 @@ import (
 	"go.uber.org/fx"
 )
 
-// TODO: 1. 把Gin调通
 // TODO: 2. 加入对话接口
 // TODO: 3. 缝合im系统
 // TODO: 4. 部署验证
