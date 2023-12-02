@@ -21,6 +21,7 @@ func (r *Router) Handler() http.Handler {
 		apiV1 := engine.Group("api/v1")
 		{
 			apiV1.GET("/", func(c *gin.Context) {
+
 				c.JSON(200, gin.H{
 					"message": "Hello, World!",
 				})

@@ -4,12 +4,14 @@ go 1.20
 
 require (
 	github.com/gin-gonic/gin v1.8.1
+	github.com/shadowsocks/shadowsocks-go v0.0.0-20200409064450-3e585ff90601
 	github.com/spf13/viper v1.15.0
 	go.uber.org/fx v1.18.1
 	go.uber.org/zap v1.21.0
 )
 
 require (
+	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
