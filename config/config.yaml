@@ -1,0 +1,5 @@
+GptLark:
+  Key: "your_key"
+  EndPoint: "your_endpoint"
+  AppSecret: "your_app_secret"
+
