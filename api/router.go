@@ -2,6 +2,7 @@ package api
 
 import (
 	"FantasticLife/server"
+	"FantasticLife/services"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 	"net/http"
@@ -12,6 +13,7 @@ type Router struct {
 	CorsMiddleware gin.HandlerFunc `name:"cors"`
 	HostPort       string          `name:"hostPort"`
 	GptBotServer   server.BOT
+	ChatSession    services.TalkFunction
 }
 
 func (r *Router) Handler() http.Handler {
@@ -26,7 +28,8 @@ func (r *Router) Handler() http.Handler {
 					"message": "Hello, World!",
 				})
 			})
-			apiV1.POST("completions", r.GptBotServer.BOTChat)
+			apiV1.POST("completionsTest", r.GptBotServer.SpeakToBot_server)
+			apiV1.POST("init", r.GptBotServer.InitBot)
 		}
 
 	}
