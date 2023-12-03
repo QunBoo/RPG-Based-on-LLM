@@ -11,6 +11,7 @@ import (
 type Router struct {
 	fx.In
 	CorsMiddleware gin.HandlerFunc `name:"cors"`
+	ZapLogger      gin.HandlerFunc `name:"zaplogger"`
 	HostPort       string          `name:"hostPort"`
 	GptBotServer   server.BOT
 	ChatSession    services.TalkFunction
@@ -19,6 +20,7 @@ type Router struct {
 func (r *Router) Handler() http.Handler {
 	engine := gin.New()
 	engine.Use(gin.Recovery(), r.CorsMiddleware)
+	engine.Use(gin.Recovery(), r.ZapLogger)
 	{
 		apiV1 := engine.Group("api/v1")
 		{
