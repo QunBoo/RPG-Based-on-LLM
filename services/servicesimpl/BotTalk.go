@@ -5,11 +5,13 @@ import (
 	"FantasticLife/services"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"net/http"
 )
 
 type ChatSessionService struct {
 	ChatSessionList map[string]*ChatSession
+	logger          *zap.Logger
 }
 type ChatSession struct {
 	ChatSessionId string
@@ -41,8 +43,10 @@ func (s *ChatSessionService) InitSession(c *gin.Context) {
 	})
 }
 
-func NewChatSessionService() services.TalkFunction {
-	CSService := ChatSessionService{}
-	TkFunc := services.TalkFunction(&CSService)
-	return TkFunc
+func NewChatSessionService(zapLogger *zap.Logger) services.TalkFunction {
+	CSService := ChatSessionService{
+		logger: zapLogger,
+	}
+	//TkFunc := services.TalkFunction(&CSService)
+	return &CSService
 }

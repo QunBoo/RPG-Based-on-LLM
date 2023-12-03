@@ -6,19 +6,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 )
+
+type GptBot struct {
+	conn    *GptConn
+	chatMap []map[string]string
+	logger  *zap.Logger
+}
 
 type GptConn struct {
 	Key       string
 	EndPoint  string
 	AppSecret string
 }
-type GptBot struct {
-	conn    *GptConn
-	chatMap []map[string]string
-}
+
 type RequestData struct {
 	Messages struct {
 		Role    string `json:"role"`
@@ -69,41 +73,39 @@ func (b *GptBot) SpeakToBot(c *gin.Context, messageMap map[string]string) {
 	client := &http.Client{}                                            // 创建客户端
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData)) // 创建请求
 	if err != nil {
-		fmt.Println(err)
+		b.logger.Error("func: SpeakToBot", zap.Error(err))
 		return
 	}
 	req.Header.Add("Content-Type", "application/json") // 添加请求头
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", api_key))
 	res, err := client.Do(req) // 发送请求
 	if err != nil {
-		fmt.Println(err)
+		b.logger.Error("func: SpeakToBot", zap.Error(err))
 		return
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			fmt.Println(err)
+			b.logger.Error("func: SpeakToBot", zap.Error(err))
 			return
 		}
 	}(res.Body) // 关闭请求
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
+		b.logger.Error("func: SpeakToBot", zap.Error(err))
 		return
 	}
 	if res.StatusCode == 200 {
-		fmt.Println("请求成功！")
-		fmt.Println("响应body:", string(body))
+		b.logger.Info("响应SpeakToBot:", zap.String("body", string(body)))
 	} else {
-		fmt.Println("请求失败，状态码:", res.StatusCode)
-		fmt.Println("请求失败，body:", string(body))
+		b.logger.Warn("响应SpeakToBot:", zap.String("body", string(body)))
 	}
 	// 解析 JSON
 	var botResp BotResponseData
 	err = json.Unmarshal(body, &botResp)
 	if err != nil {
-		fmt.Println("Error parsing JSON: ", err)
+		b.logger.Error("Error parsing JSON: ", zap.Error(err))
 		return
 	}
 
@@ -145,41 +147,39 @@ func (b *GptBot) SpeakToBot_server(c *gin.Context) {
 	client := &http.Client{}                                            // 创建客户端
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData)) // 创建请求
 	if err != nil {
-		fmt.Println(err)
+		b.logger.Error("func: SpeakToBot_server", zap.Error(err))
 		return
 	}
 	req.Header.Add("Content-Type", "application/json") // 添加请求头
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", api_key))
 	res, err := client.Do(req) // 发送请求
 	if err != nil {
-		fmt.Println(err)
+		b.logger.Error("func: SpeakToBot_server", zap.Error(err))
 		return
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			fmt.Println(err)
+			b.logger.Error("func: SpeakToBot_server", zap.Error(err))
 			return
 		}
 	}(res.Body) // 关闭请求
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
+		b.logger.Error("func: SpeakToBot_server", zap.Error(err))
 		return
 	}
 	if res.StatusCode == 200 {
-		fmt.Println("请求成功！")
-		fmt.Println("响应body:", string(body))
+		b.logger.Info("响应SpeakToBot:", zap.String("body", string(body)))
 	} else {
-		fmt.Println("请求失败，状态码:", res.StatusCode)
-		fmt.Println("请求失败，body:", string(body))
+		b.logger.Warn("响应SpeakToBot:", zap.String("body", string(body)))
 	}
 	// 解析 JSON
 	var botResp BotResponseData
 	err = json.Unmarshal(body, &botResp)
 	if err != nil {
-		fmt.Println("Error parsing JSON: ", err)
+		b.logger.Error("Error parsing JSON: ", zap.Error(err))
 		return
 	}
 
@@ -213,8 +213,9 @@ func (b *GptBot) InitBot(c *gin.Context) {
 //	}
 //}
 
-func NewGptBot(pConn *GptConn) (server.BOT, error) {
+func NewGptBot(pConn *GptConn, zapLogger *zap.Logger) (server.BOT, error) {
 	return &GptBot{
-		conn: pConn,
+		conn:   pConn,
+		logger: zapLogger,
 	}, nil
 }
