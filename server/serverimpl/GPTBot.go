@@ -79,7 +79,13 @@ func (b *GptBot) SpeakToBot(c *gin.Context, messageMap map[string]string) {
 		fmt.Println(err)
 		return
 	}
-	defer res.Body.Close() // 关闭请求
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}(res.Body) // 关闭请求
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -149,7 +155,13 @@ func (b *GptBot) SpeakToBot_server(c *gin.Context) {
 		fmt.Println(err)
 		return
 	}
-	defer res.Body.Close() // 关闭请求
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}(res.Body) // 关闭请求
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {

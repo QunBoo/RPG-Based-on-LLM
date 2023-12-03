@@ -36,7 +36,9 @@ func (s *ChatSessionService) SendMessageToBot(c *gin.Context) {
 	//s.BotInter.SpeakToBot(c, modifiedMessage)
 }
 func (s *ChatSessionService) InitSession(c *gin.Context) {
-
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Hello, World!",
+	})
 }
 
 func NewChatSessionService() services.TalkFunction {
