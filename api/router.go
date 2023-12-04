@@ -13,7 +13,7 @@ type Router struct {
 	CorsMiddleware gin.HandlerFunc `name:"cors"`
 	ZapLogger      gin.HandlerFunc `name:"zaplogger"`
 	HostPort       string          `name:"hostPort"`
-	GptBotServer   server.BOT
+	LLMBotServer   server.LLMBOT
 	ChatSession    services.TalkFunction
 }
 
@@ -30,8 +30,7 @@ func (r *Router) Handler() http.Handler {
 					"message": "Hello, World!",
 				})
 			})
-			apiV1.POST("completionsTest", r.GptBotServer.SpeakToBot_server)
-			apiV1.POST("init", r.GptBotServer.InitBot)
+			apiV1.POST("completionsTest", r.LLMBotServer.SpeakToBot_server)
 		}
 
 	}
