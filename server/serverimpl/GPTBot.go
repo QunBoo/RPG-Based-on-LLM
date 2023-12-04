@@ -16,7 +16,10 @@ type GptBot struct {
 	chatMap []map[string]string
 	logger  *zap.Logger
 }
-
+type LLMEntity struct {
+	Id   string `json:"id"`
+	Conn server.LLMTransceiver
+}
 type GptConn struct {
 	Key       string
 	EndPoint  string
@@ -50,16 +53,6 @@ type BotResponseData struct {
 }
 
 func (b *GptBot) SpeakToBot(c *gin.Context, messageMap map[string]string) {
-	//消息处理
-	//var requestData RequestData
-	//if err := c.BindJSON(&requestData); err != nil {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	//	return
-	//}
-	//messageMap := map[string]string{
-	//	"role":    requestData.Messages.Role,
-	//	"content": requestData.Messages.Content,
-	//}
 	b.chatMap = append(b.chatMap, messageMap)
 	//发送消息
 	url := b.conn.EndPoint

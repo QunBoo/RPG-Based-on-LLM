@@ -8,3 +8,7 @@ type BOT interface {
 	SpeakToBot(c *gin.Context, message map[string]string)
 	SpeakToBot_server(c *gin.Context)
 }
+
+type LLMTransceiver interface {
+	SpeakToLLM(c *gin.Context, message map[string]string)
+}
