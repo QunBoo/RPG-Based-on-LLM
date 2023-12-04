@@ -1,7 +1,6 @@
 package config
 
 import (
-	"FantasticLife/server/serverimpl"
 	"github.com/spf13/viper"
 	"log"
 	"path/filepath"
@@ -37,13 +36,4 @@ func GetConfig() *Config {
 		log.Fatalf("unable to decode into struct, %s", err)
 	}
 	return config
-}
-
-func NewGptLarkConf(config *Config) *serverimpl.GptConn {
-	gptLArk := config.GptLark
-	return &serverimpl.GptConn{
-		Key:       gptLArk.Key,
-		EndPoint:  gptLArk.EndPoint,
-		AppSecret: gptLArk.AppSecret,
-	}
 }
