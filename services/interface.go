@@ -2,7 +2,7 @@ package services
 
 import "github.com/gin-gonic/gin"
 
-type TalkFunction interface {
+type ChatSessionService interface {
 	SendMessageToBot(c *gin.Context)
 	InitSession(c *gin.Context)
 }
