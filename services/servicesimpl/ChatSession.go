@@ -9,17 +9,17 @@ import (
 	"net/http"
 )
 
-type ChatSessionService struct {
+type ChatSessionServiceImpl struct {
 	ChatSessionList map[string]*ChatSession
 	logger          *zap.Logger
 }
 type ChatSession struct {
 	ChatSessionId string
-	BotInter      server.BOT
+	LLMBOTInter   *server.LLMBOT
 }
 
 // TODO: 管理ChatSession和Service的关系，以及talkfunction接口
-func (s *ChatSessionService) SendMessageToBot(c *gin.Context) {
+func (s *ChatSessionServiceImpl) SendMessageToBot(c *gin.Context) {
 	var input struct {
 		Messages string `json:"messages"`
 	}
@@ -37,16 +37,27 @@ func (s *ChatSessionService) SendMessageToBot(c *gin.Context) {
 	fmt.Println(modifiedMessage)
 	//s.BotInter.SpeakToBot(c, modifiedMessage)
 }
-func (s *ChatSessionService) InitSession(c *gin.Context) {
+func (s *ChatSessionServiceImpl) InitSession(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Hello, World!",
 	})
 }
 
-func NewChatSessionService(zapLogger *zap.Logger) services.TalkFunction {
-	CSService := ChatSessionService{
-		logger: zapLogger,
+func NewChatSession(llmbot server.LLMBOT) *ChatSession {
+	return &ChatSession{
+		ChatSessionId: "Default",
+		LLMBOTInter:   &llmbot,
 	}
-	//TkFunc := services.TalkFunction(&CSService)
+}
+
+// TODO：初始化ChatSession，研究fx怎么用
+func NewChatSessionService(zapLogger *zap.Logger, defaultSesstion *ChatSession) services.ChatSessionService {
+	SessionList := make(map[string]*ChatSession)
+	SessionList["Default"] = defaultSesstion
+	CSService := ChatSessionServiceImpl{
+		ChatSessionList: make(map[string]*ChatSession),
+		logger:          zapLogger,
+	}
+	//TkFunc := services.ChatSessionService(&CSService)
 	return &CSService
 }

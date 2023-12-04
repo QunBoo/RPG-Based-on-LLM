@@ -14,7 +14,7 @@ type Router struct {
 	ZapLogger      gin.HandlerFunc `name:"zaplogger"`
 	HostPort       string          `name:"hostPort"`
 	LLMBotServer   server.LLMBOT
-	ChatSession    services.TalkFunction
+	ChatSession    services.ChatSessionService
 }
 
 func (r *Router) Handler() http.Handler {
