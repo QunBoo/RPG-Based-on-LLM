@@ -40,7 +40,6 @@ type ResponseData struct {
 	} `json:"choices"`
 }
 
-// TODO: 1. 实现对话接口
 func (co *BaiChuanConn) SpeakToLLM(c *gin.Context, messageMapSlice []map[string]string) (respMessage string) {
 	url := co.EndPoint
 	api_key := co.Key

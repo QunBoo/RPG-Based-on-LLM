@@ -15,6 +15,13 @@ type Config struct {
 		EndPoint  string
 		AppSecret string
 	}
+	App struct {
+		HttpPort      string
+		WebSocketPort string
+		RpcPort       string
+		HttpUrl       string
+		WebSocketUrl  string
+	}
 }
 
 func GetConfig() *Config {
