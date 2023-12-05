@@ -9,12 +9,20 @@ import (
 	"time"
 )
 
-func HttpServerLifecycle(lc fx.Lifecycle, server *http.Server, logger *zap.Logger) {
+type Servers struct {
+	fx.In
+
+	Server1 *http.Server `name:"server1"`
+	// 如果需要更多的服务器，可以继续在这里添加
+}
+
+func HttpServerLifecycle(lc fx.Lifecycle, servers Servers, logger *zap.Logger) {
+	server1 := servers.Server1
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			go func() {
-				logger.Info("http server starting", zap.String("address", server.Addr))
-				if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Info("http server starting", zap.String("address", server1.Addr))
+				if err := server1.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 					logger.Fatal("server failed to start", zap.Error(err))
 				}
 			}()
@@ -23,7 +31,7 @@ func HttpServerLifecycle(lc fx.Lifecycle, server *http.Server, logger *zap.Logge
 		OnStop: func(ctx context.Context) error {
 			_ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
-			if err := server.Shutdown(_ctx); err != nil {
+			if err := server1.Shutdown(_ctx); err != nil {
 				logger.Error("server shutdown failed", zap.Error(err))
 			} else {
 				logger.Info("server gracefully shutdown")
@@ -33,10 +41,14 @@ func HttpServerLifecycle(lc fx.Lifecycle, server *http.Server, logger *zap.Logge
 	})
 }
 
+// TODO：写第二个server，启动websocket服务器程序，设定webSocketPort
 var Module = fx.Module("router",
 	middleware.Module,
 	fx.Provide(
-		NewHttpServer,
+		fx.Annotated{
+			Name:   "server1",
+			Target: NewHttpServer,
+		},
 	),
 	fx.Invoke(HttpServerLifecycle),
 )

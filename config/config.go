@@ -11,6 +11,7 @@ const configDir = "config"
 
 type Config struct {
 	GptLark struct {
+		LLMName   string
 		Key       string
 		EndPoint  string
 		AppSecret string

@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"io"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -23,6 +24,13 @@ type BaiChuanConn struct {
 	EndPoint string
 	logger   *zap.Logger
 }
+type WXConn struct {
+	Key       string
+	AppSecret string
+	EndPoint  string
+	logger    *zap.Logger
+}
+
 type RequestData struct {
 	Messages struct {
 		Role    string `json:"role"`
@@ -38,6 +46,83 @@ type ResponseData struct {
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
+}
+
+type ResponseDataForWX struct {
+	Result string `json:"result"`
+}
+
+func (co WXConn) SpeakToLLM(c *gin.Context, messageMapSlice []map[string]string) (respMessage string) {
+	apiKey := co.Key
+	secretKey := co.AppSecret
+	tokenURL := fmt.Sprintf("https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=%s&client_secret=%s", apiKey, secretKey)
+	resp, err := http.Get(tokenURL)
+	if err != nil {
+		fmt.Println("Failed to get access token:", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Failed to read access token response:", err)
+		return
+	}
+	type AccessToken struct {
+		AccessToken string `json:"access_token"`
+	}
+	var accessToken1 AccessToken
+	err = json.Unmarshal(body, &accessToken1)
+	if err != nil {
+		fmt.Println("Failed to unmarshal access token:", err)
+		return
+	}
+	accessToken := accessToken1.AccessToken
+
+	// 步骤二：调用文心一言API发送信息
+	apiEndpoint := fmt.Sprintf("https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro?access_token=%s", accessToken)
+
+	// 创建一个新的结构体，用于生成期望的 JSON 格式
+	type Messages struct {
+		Messages []map[string]string `json:"messages"`
+	}
+	// 将 messageMapSlice 放入 Messages 结构体
+	messages := Messages{Messages: messageMapSlice}
+	// MarshalIndent 用于生成格式化的 JSON 字符串
+	jsonData, err := json.MarshalIndent(messages, "", "  ")
+	if err != nil {
+		fmt.Println("Error marshalling JSON:", err)
+		return
+	}
+
+	// 将 JSON 字符串转换为 []byte 类型
+	byteSlice := []byte(jsonData)
+
+	//
+	//byteSlice = []byte(`{
+	////  "messages": [
+	////   {"role":"user","content":"介绍一下你自己"}
+	////  ]
+	////}`)
+	//fmt.Println("<=======byteSlice:", string(byteSlice))
+
+	resp, err = http.Post(apiEndpoint, "application/json", bytes.NewBuffer(byteSlice))
+	if err != nil {
+		fmt.Println("Failed to send message:")
+		return
+	}
+	defer resp.Body.Close()
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Failed to read API response:", err)
+		return
+	}
+	fmt.Println("API response:", string(body))
+	var respData ResponseDataForWX
+	err = json.Unmarshal(body, &respData)
+	c.JSON(http.StatusOK, gin.H{
+		"message": respData.Result,
+	})
+	return respData.Result
 }
 
 func (co *BaiChuanConn) SpeakToLLM(c *gin.Context, messageMapSlice []map[string]string) (respMessage string) {
@@ -129,7 +214,7 @@ func NewLLMBOT(pConn server.LLMTransceiver, zapLogger *zap.Logger) (server.LLMBO
 }
 func NewLLMTransceiver(config *config.Config, zapLogger *zap.Logger) server.LLMTransceiver {
 	gptLArk := config.GptLark
-	LLMName := "BaiChuan"
+	LLMName := gptLArk.LLMName
 	if LLMName == "BaiChuan" {
 		bcConn := BaiChuanConn{
 			Key:      gptLArk.Key,
@@ -137,6 +222,14 @@ func NewLLMTransceiver(config *config.Config, zapLogger *zap.Logger) server.LLMT
 			logger:   zapLogger,
 		}
 		return &bcConn
+	} else if LLMName == "WXYY" {
+		WXConn := WXConn{
+			EndPoint:  gptLArk.EndPoint,
+			Key:       gptLArk.Key,
+			AppSecret: gptLArk.AppSecret,
+			logger:    zapLogger,
+		}
+		return &WXConn
 	}
 	return nil
 }
