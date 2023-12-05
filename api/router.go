@@ -31,6 +31,8 @@ func (r *Router) Handler() http.Handler {
 				})
 			})
 			apiV1.POST("completionsTest", r.LLMBotServer.SpeakToBot_server)
+			apiV1.POST("ChatInit", r.ChatSession.InitSession)
+			apiV1.POST("completions", r.ChatSession.SendMessageToBot)
 		}
 
 	}
