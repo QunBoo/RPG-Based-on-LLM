@@ -6,11 +6,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type LLMEntity struct {
@@ -175,6 +176,10 @@ func (co *BaiChuanConn) SpeakToLLM(c *gin.Context, messageMapSlice []map[string]
 }
 
 func (b *LLMEntity) SpeakToBot(c *gin.Context, messageMapSlice []map[string]string) (respMessage string) {
+	if b.Conn == nil {
+		b.logger.Error("conn == nil")
+		return "conn == nil"
+	}
 	//发送消息
 	respMessage = b.Conn.SpeakToLLM(c, messageMapSlice)
 	// 返回消息

@@ -6,6 +6,7 @@ import (
 	"FantasticLife/server/serverimpl"
 	"FantasticLife/services/servicesimpl"
 	"FantasticLife/utils"
+
 	"go.uber.org/fx"
 )
 
