@@ -1,5 +1,12 @@
 GptLark:
+  LLMName: "WXYY"
   Key: "your_key"
   EndPoint: "your_endpoint"
   AppSecret: "your_app_secret"
 
+App:
+  HttpPort: 8080
+  WebSocketPort: 8089
+  RpcPort: 9001
+  HttpUrl: 127.0.0.1:8080
+  WebSocketUrl:  127.0.0.1:8089

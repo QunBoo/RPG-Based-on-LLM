@@ -1,6 +1,7 @@
 package api
 
 import (
+	"FantasticLife/config"
 	"FantasticLife/server"
 	"FantasticLife/services"
 	"github.com/gin-gonic/gin"
@@ -39,7 +40,9 @@ func (r *Router) Handler() http.Handler {
 	return engine
 }
 
-func NewHttpServer(router Router) *http.Server {
+func NewHttpServer(router Router, config *config.Config) *http.Server {
+	//app := config.App
+	//httpPort := app.HttpPort
 	return &http.Server{
 		Addr:    router.HostPort,
 		Handler: router.Handler(),

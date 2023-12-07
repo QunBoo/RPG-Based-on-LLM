@@ -2,14 +2,20 @@ package servicesimpl
 
 import (
 	"FantasticLife/server"
+	"FantasticLife/server/serverimpl/WebSocket"
 	"FantasticLife/services"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"net/http"
+	"sync"
 )
+
+type DisposeFunc func(client *WebSocket.Client, seq string, message []byte) (code uint32, msg string, data interface{})
 
 type ChatSessionServiceImpl struct {
 	ChatSessionList map[string]*ChatSession
+	handlers        map[string]DisposeFunc
+	handlersRWMutex sync.RWMutex
 	logger          *zap.Logger
 }
 type ChatSession struct {
@@ -18,7 +24,26 @@ type ChatSession struct {
 	LLMBOTInter   server.LLMBOT
 }
 
-// TODO: 管理ChatSession和Service的关系，以及talkfunction接口
+// 连接功能
+// handler注册到全局的map handlers[key]里
+func (s *ChatSessionServiceImpl) Register(key string, value DisposeFunc) {
+	s.handlersRWMutex.Lock()
+	defer s.handlersRWMutex.Unlock()
+	s.handlers[key] = value
+
+	return
+}
+
+func (s *ChatSessionServiceImpl) getHandlers(key string) (value DisposeFunc, ok bool) {
+	s.handlersRWMutex.RLock()
+	defer s.handlersRWMutex.RUnlock()
+
+	value, ok = s.handlers[key]
+
+	return
+}
+
+// 和Bot的交互功能
 func (s *ChatSessionServiceImpl) SendMessageToBot(c *gin.Context) {
 	var input struct {
 		SessionId string `json:"session_id"`
@@ -76,8 +101,14 @@ func NewChatSessionService(zapLogger *zap.Logger, defaultSesstion *ChatSession) 
 	SessionList["Default"] = defaultSesstion
 	CSService := ChatSessionServiceImpl{
 		ChatSessionList: SessionList,
+		handlers:        make(map[string]DisposeFunc),
+		handlersRWMutex: sync.RWMutex{},
 		logger:          zapLogger,
 	}
-	//TkFunc := services.ChatSessionService(&CSService)
+	// TODO 注册处理函数
+	CSService.Register("login", WebSocket.LoginController)
+	CSService.Register("heartbeat", WebSocket.HeartbeatController)
+	CSService.Register("ping", WebSocket.PingController)
+
 	return &CSService
 }

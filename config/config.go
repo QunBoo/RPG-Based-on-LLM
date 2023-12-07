@@ -11,9 +11,17 @@ const configDir = "config"
 
 type Config struct {
 	GptLark struct {
+		LLMName   string
 		Key       string
 		EndPoint  string
 		AppSecret string
+	}
+	App struct {
+		HttpPort      string
+		WebSocketPort string
+		RpcPort       string
+		HttpUrl       string
+		WebSocketUrl  string
 	}
 }
 
