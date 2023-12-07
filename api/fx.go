@@ -28,7 +28,7 @@ func HttpServerLifecycle(lc fx.Lifecycle, servers Servers, logger *zap.Logger, c
 					logger.Fatal("server failed to start", zap.Error(err))
 				}
 			}()
-			go WebSocket.StartWebSocket(config, clientManager)
+			go WebSocket.StartWebSocket(config, clientManager, logger)
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
