@@ -97,15 +97,6 @@ func (co WXConn) SpeakToLLM(c *gin.Context, messageMapSlice []map[string]string)
 
 	// 将 JSON 字符串转换为 []byte 类型
 	byteSlice := []byte(jsonData)
-
-	//
-	//byteSlice = []byte(`{
-	////  "messages": [
-	////   {"role":"user","content":"介绍一下你自己"}
-	////  ]
-	////}`)
-	//fmt.Println("<=======byteSlice:", string(byteSlice))
-
 	resp, err = http.Post(apiEndpoint, "application/json", bytes.NewBuffer(byteSlice))
 	if err != nil {
 		fmt.Println("Failed to send message:")
@@ -117,7 +108,7 @@ func (co WXConn) SpeakToLLM(c *gin.Context, messageMapSlice []map[string]string)
 		fmt.Println("Failed to read API response:", err)
 		return
 	}
-	fmt.Println("API response:", string(body))
+	//fmt.Println("API response:", string(body))
 	var respData ResponseDataForWX
 	err = json.Unmarshal(body, &respData)
 	c.JSON(http.StatusOK, gin.H{
