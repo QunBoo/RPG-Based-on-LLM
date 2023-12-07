@@ -1,4 +1,4 @@
-package serverimpl
+package WebSocket
 
 import (
 	"fmt"

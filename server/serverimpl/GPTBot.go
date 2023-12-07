@@ -183,9 +183,6 @@ func (b *LLMEntity) SpeakToBot(c *gin.Context, messageMapSlice []map[string]stri
 	//发送消息
 	respMessage = b.Conn.SpeakToLLM(c, messageMapSlice)
 	// 返回消息
-	c.JSON(http.StatusOK, gin.H{
-		"message": "SpeakToBot Success!",
-	})
 	return respMessage
 }
 

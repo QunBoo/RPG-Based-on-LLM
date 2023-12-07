@@ -2,6 +2,8 @@ package api
 
 import (
 	"FantasticLife/api/middleware"
+	"FantasticLife/config"
+	"FantasticLife/server/serverimpl/WebSocket"
 	"context"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -16,7 +18,7 @@ type Servers struct {
 	// 如果需要更多的服务器，可以继续在这里添加
 }
 
-func HttpServerLifecycle(lc fx.Lifecycle, servers Servers, logger *zap.Logger) {
+func HttpServerLifecycle(lc fx.Lifecycle, servers Servers, logger *zap.Logger, config *config.Config, clientManager *WebSocket.ClientManager) {
 	server1 := servers.Server1
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -26,6 +28,7 @@ func HttpServerLifecycle(lc fx.Lifecycle, servers Servers, logger *zap.Logger) {
 					logger.Fatal("server failed to start", zap.Error(err))
 				}
 			}()
+			go WebSocket.StartWebSocket(config, clientManager)
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
