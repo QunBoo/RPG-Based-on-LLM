@@ -1,7 +1,7 @@
 GptLark:
   LLMName: "WXYY"
   Key: "your_key"
-  EndPoint: "your_endpoint"
+  EndPoint: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro"
   AppSecret: "your_app_secret"
 
 App:
