@@ -41,12 +41,12 @@ func StartWebSocket(config *config.Config, clientManager *ClientManager, logger 
 		logger.Info("webSocket 建立连接:", zap.String("Addr", conn.RemoteAddr().String()))
 
 		currentTime := uint64(time.Now().Unix())
-		client := NewClient(conn.RemoteAddr().String(), conn, currentTime)
+		client := NewClient(conn.RemoteAddr().String(), conn, currentTime, clientManager)
 
 		go client.read()
 		go client.write()
 		// 用户连接事件
-		clientManager.Register <- client
+		clientManager.RegisterChan <- client
 	}
 	http.HandleFunc("/acc", wsPage)
 

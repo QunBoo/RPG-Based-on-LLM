@@ -1,6 +1,8 @@
 package WebSocket
 
 import (
+	"FantasticLife/utils"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 
@@ -28,24 +30,26 @@ func (l *login) GetKey() (key string) {
 
 // 用户连接
 type Client struct {
-	Addr          string          // 客户端地址
-	Socket        *websocket.Conn // 用户连接
-	Send          chan []byte     // 待发送的数据
-	AppId         uint32          // 登录的平台Id app/web/ios
-	UserId        string          // 用户Id，用户登录以后才有
-	FirstTime     uint64          // 首次连接事件
-	HeartbeatTime uint64          // 用户上次心跳时间
-	LoginTime     uint64          // 登录时间 登录以后才有
+	Addr              string          // 客户端地址
+	Socket            *websocket.Conn // 用户连接
+	Send              chan []byte     // 待发送的数据
+	AppId             uint32          // 登录的平台Id app/web/ios
+	UserId            string          // 用户Id，用户登录以后才有
+	FirstTime         uint64          // 首次连接事件
+	HeartbeatTime     uint64          // 用户上次心跳时间
+	LoginTime         uint64          // 登录时间 登录以后才有
+	ClientManagerHook *ClientManager
 }
 
 // 初始化
-func NewClient(addr string, socket *websocket.Conn, firstTime uint64) (client *Client) {
+func NewClient(addr string, socket *websocket.Conn, firstTime uint64, clientManagerHook *ClientManager) (client *Client) {
 	client = &Client{
-		Addr:          addr,
-		Socket:        socket,
-		Send:          make(chan []byte, 100),
-		FirstTime:     firstTime,
-		HeartbeatTime: firstTime,
+		Addr:              addr,
+		Socket:            socket,
+		Send:              make(chan []byte, 100),
+		FirstTime:         firstTime,
+		HeartbeatTime:     firstTime,
+		ClientManagerHook: clientManagerHook,
 	}
 
 	return
@@ -79,8 +83,8 @@ func (c *Client) read() {
 		}
 		// 处理程序
 		fmt.Println("[Cli::read()]读取客户端数据 处理:", string(message))
-		//TODO:处理程序
-		//ProcessData(c, message)
+
+		c.ProcessData(message)
 	}
 }
 
@@ -169,6 +173,73 @@ func (c *Client) IsLogin() (isLogin bool) {
 
 		return
 	}
+
+	return
+}
+
+func (c *Client) ProcessData(message []byte) {
+
+	fmt.Println("处理数据", c.Addr, string(message))
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("处理数据 stop", r)
+		}
+	}()
+
+	request := &Request{}
+
+	err := json.Unmarshal(message, request)
+	if err != nil {
+		fmt.Println("处理数据 json Unmarshal", err)
+		c.SendMsg([]byte("数据不合法"))
+
+		return
+	}
+
+	requestData, err := json.Marshal(request.Data)
+	if err != nil {
+		fmt.Println("处理数据 json Marshal", err)
+		c.SendMsg([]byte("处理数据失败"))
+
+		return
+	}
+
+	seq := request.Seq
+	cmd := request.Cmd
+
+	var (
+		code uint32
+		msg  string
+		data interface{}
+	)
+
+	// request
+	fmt.Println("接入模块服务请求", cmd, c.Addr)
+
+	// 在句柄注册的map中寻找句柄，并调用句柄，得到响应Response
+	clientManagerHook := c.ClientManagerHook
+	if value, ok := clientManagerHook.GetHandlers(cmd); ok {
+		code, msg, data = value(c, seq, requestData)
+	} else {
+		code = utils.RoutingNotExist
+		fmt.Println("处理数据 路由不存在", c.Addr, "cmd", cmd)
+	}
+
+	msg = utils.GetErrorMessage(code, msg)
+
+	responseHead := NewResponseHead(seq, cmd, code, msg, data)
+
+	headByte, err := json.Marshal(responseHead)
+	if err != nil {
+		fmt.Println("处理数据 json Marshal", err)
+
+		return
+	}
+	// fmt.Printf("《《《《headByte: %s\n", headByte)
+	c.SendMsg(headByte)
+
+	fmt.Println("acc_response send", c.Addr, c.AppId, c.UserId, "cmd", cmd, "code", code)
 
 	return
 }

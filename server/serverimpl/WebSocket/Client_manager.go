@@ -6,27 +6,54 @@ import (
 	"time"
 )
 
+type DisposeFunc func(client *Client, seq string, message []byte) (code uint32, msg string, data interface{})
+
 // 连接管理
 type ClientManager struct {
-	Clients     map[*Client]bool   // 全部的连接
-	ClientsLock sync.RWMutex       // 读写锁
-	Users       map[string]*Client // 登录的用户 // appId+uuid
-	UserLock    sync.RWMutex       // 读写锁
-	Register    chan *Client       // 连接连接处理
-	Login       chan *login        // 用户登录处理
-	Unregister  chan *Client       // 断开连接处理程序
-	Broadcast   chan []byte        // 广播 向全部成员发送数据
+	Clients         map[*Client]bool   // 全部的连接
+	ClientsLock     sync.RWMutex       // 读写锁
+	Users           map[string]*Client // 登录的用户 // appId+uuid
+	UserLock        sync.RWMutex       // 读写锁
+	RegisterChan    chan *Client       // 连接连接处理
+	Login           chan *login        // 用户登录处理
+	Unregister      chan *Client       // 断开连接处理程序
+	Broadcast       chan []byte        // 广播 向全部成员发送数据
+	Handlers        map[string]DisposeFunc
+	HandlersRWMutex sync.RWMutex
 }
 
 func NewClientManager() (clientManager *ClientManager) {
 	clientManager = &ClientManager{
-		Clients:    make(map[*Client]bool),
-		Users:      make(map[string]*Client),
-		Register:   make(chan *Client, 1000),
-		Login:      make(chan *login, 1000),
-		Unregister: make(chan *Client, 1000),
-		Broadcast:  make(chan []byte, 1000),
+		Clients:         make(map[*Client]bool),
+		Users:           make(map[string]*Client),
+		RegisterChan:    make(chan *Client, 1000),
+		Login:           make(chan *login, 1000),
+		Unregister:      make(chan *Client, 1000),
+		Broadcast:       make(chan []byte, 1000),
+		Handlers:        make(map[string]DisposeFunc),
+		HandlersRWMutex: sync.RWMutex{},
 	}
+	clientManager.Register("login", LoginController)
+	clientManager.Register("heartbeat", HeartbeatController)
+	clientManager.Register("ping", PingController)
+
+	return
+}
+
+// 连接功能
+// handler注册到全局的map handlers[key]里
+func (s *ClientManager) Register(key string, value DisposeFunc) {
+	s.HandlersRWMutex.Lock()
+	defer s.HandlersRWMutex.Unlock()
+	s.Handlers[key] = value
+	return
+}
+
+func (s *ClientManager) GetHandlers(key string) (value DisposeFunc, ok bool) {
+	s.HandlersRWMutex.RLock()
+	defer s.HandlersRWMutex.RUnlock()
+
+	value, ok = s.Handlers[key]
 
 	return
 }
@@ -280,7 +307,7 @@ func (manager *ClientManager) EventUnregister(client *Client) {
 func (manager *ClientManager) start() {
 	for {
 		select {
-		case conn := <-manager.Register:
+		case conn := <-manager.RegisterChan:
 			// 建立连接事件
 			manager.EventRegister(conn)
 
@@ -313,7 +340,7 @@ func (clientManager *ClientManager) GetManagerInfo(isDebug string) (managerInfo 
 
 	managerInfo["clientsLen"] = clientManager.GetClientsLen()        // 客户端连接数
 	managerInfo["usersLen"] = clientManager.GetUsersLen()            // 登录用户数
-	managerInfo["chanRegisterLen"] = len(clientManager.Register)     // 未处理连接事件数
+	managerInfo["chanRegisterLen"] = len(clientManager.RegisterChan) // 未处理连接事件数
 	managerInfo["chanLoginLen"] = len(clientManager.Login)           // 未处理登录事件数
 	managerInfo["chanUnregisterLen"] = len(clientManager.Unregister) // 未处理退出登录事件数
 	managerInfo["chanBroadcastLen"] = len(clientManager.Broadcast)   // 未处理广播事件数
