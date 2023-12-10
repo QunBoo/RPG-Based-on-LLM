@@ -2,7 +2,9 @@ package WebSocket
 
 import (
 	"FantasticLife/utils"
+	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // ping
@@ -20,43 +22,43 @@ func PingController(client *Client, seq string, message []byte) (code uint32, ms
 func LoginController(client *Client, seq string, message []byte) (code uint32, msg string, data interface{}) {
 	code = utils.OK
 	fmt.Println("webSocket_request login接口", client.Addr, seq, string(message))
-	//currentTime := uint64(time.Now().Unix())
+	currentTime := uint64(time.Now().Unix())
 
-	//request := &Login{}
-	//if err := json.Unmarshal(message, request); err != nil {
-	//	code = utils.ParameterIllegal
-	//	fmt.Println("用户登录 解析数据失败", seq, err)
-	//
-	//	return
-	//}
-	//
-	//fmt.Println("webSocket_request 用户登录", seq, "ServiceToken", request.ServiceToken)
-	//
-	//// 本项目只是演示，所以直接过去客户端传入的用户ID
-	//if request.UserId == "" || len(request.UserId) >= 20 {
-	//	code = utils.UnauthorizedUserId
-	//	fmt.Println("用户登录 非法的用户", seq, request.UserId)
-	//
-	//	return
-	//}
-	//
-	//if !InAppIds(request.AppId) {
-	//	code = utils.Unauthorized
-	//	fmt.Println("用户登录 不支持的平台", seq, request.AppId)
-	//
-	//	return
-	//}
-	//
-	//if client.IsLogin() {
-	//	fmt.Println("用户登录 用户已经登录", client.AppId, client.UserId, seq)
-	//	code = utils.OperationFailure
-	//
-	//	return
-	//}
-	//
-	//client.Login(request.AppId, request.UserId, currentTime)
-	//
-	//// 存储数据
+	request := &Login{}
+	if err := json.Unmarshal(message, request); err != nil {
+		code = utils.ParameterIllegal
+		fmt.Println("用户登录 解析数据失败", seq, err)
+
+		return
+	}
+
+	fmt.Println("webSocket_request 用户登录", seq, "ServiceToken", request.ServiceToken)
+
+	// 本项目只是演示，所以直接过去客户端传入的用户ID
+	if request.UserId == "" || len(request.UserId) >= 20 {
+		code = utils.UnauthorizedUserId
+		fmt.Println("用户登录 非法的用户", seq, request.UserId)
+
+		return
+	}
+
+	if !client.ClientManagerHook.InAppIds(request.AppId) {
+		code = utils.Unauthorized
+		fmt.Println("用户登录 不支持的平台", seq, request.AppId)
+
+		return
+	}
+
+	if client.IsLogin() {
+		fmt.Println("用户登录 用户已经登录", client.AppId, client.UserId, seq)
+		code = utils.OperationFailure
+
+		return
+	}
+
+	client.Login(request.AppId, request.UserId, currentTime)
+
+	//// TODO 存储用户的登录数据到redis
 	//userOnline := models.UserLogin(serverIp, serverPort, request.AppId, request.UserId, client.Addr, currentTime)
 	//err := cache.SetUserOnlineInfo(client.GetKey(), userOnline)
 	//if err != nil {
@@ -65,17 +67,17 @@ func LoginController(client *Client, seq string, message []byte) (code uint32, m
 	//
 	//	return
 	//}
-	//
-	//// 用户登录
-	//login := &login{
-	//	AppId:  request.AppId,
-	//	UserId: request.UserId,
-	//	Client: client,
-	//}
-	//clientManagerHook := client.ClientManagerHook
-	//clientManagerHook.Login <- login
-	//
-	//fmt.Println("用户登录 成功", seq, client.Addr, request.UserId)
+
+	// 用户登录
+	login := &login{
+		AppId:  request.AppId,
+		UserId: request.UserId,
+		Client: client,
+	}
+	clientManagerHook := client.ClientManagerHook
+	clientManagerHook.Login <- login
+
+	fmt.Println("用户登录 成功", seq, client.Addr, request.UserId)
 	return
 }
 

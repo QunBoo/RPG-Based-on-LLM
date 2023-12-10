@@ -36,4 +36,5 @@ COPY --from=build-env /workspace/config/config.yaml /workspace/config/
 ENV GIN_MODE=release
 EXPOSE 8080
 EXPOSE 9001
+EXPOSE 8089
 ENTRYPOINT ["/server"]

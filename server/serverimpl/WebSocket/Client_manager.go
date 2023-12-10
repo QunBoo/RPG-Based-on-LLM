@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	defaultAppId = 101 // 默认平台Id
+)
+
 type DisposeFunc func(client *Client, seq string, message []byte) (code uint32, msg string, data interface{})
 
 // 连接管理
@@ -20,6 +24,7 @@ type ClientManager struct {
 	Broadcast       chan []byte        // 广播 向全部成员发送数据
 	Handlers        map[string]DisposeFunc
 	HandlersRWMutex sync.RWMutex
+	appIds          []uint32
 }
 
 func NewClientManager() (clientManager *ClientManager) {
@@ -32,6 +37,7 @@ func NewClientManager() (clientManager *ClientManager) {
 		Broadcast:       make(chan []byte, 1000),
 		Handlers:        make(map[string]DisposeFunc),
 		HandlersRWMutex: sync.RWMutex{},
+		appIds:          []uint32{defaultAppId, 102, 103, 104},
 	}
 	clientManager.Register("login", LoginController)
 	clientManager.Register("heartbeat", HeartbeatController)
@@ -398,4 +404,16 @@ func (clientManager *ClientManager) AllSendMessages(appId uint32, userId string,
 	//发送消息排除自己
 	ignoreClient := clientManager.GetUserClient(appId, userId)
 	clientManager.sendAppIdAll([]byte(data), appId, ignoreClient)
+}
+
+func (s *ClientManager) InAppIds(appId uint32) bool {
+	inAppId := false
+	for _, value := range s.appIds {
+		if value == appId {
+			inAppId = true
+
+			return inAppId
+		}
+	}
+	return inAppId
 }
