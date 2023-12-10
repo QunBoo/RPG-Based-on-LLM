@@ -18,7 +18,6 @@ func PingController(client *Client, seq string, message []byte) (code uint32, ms
 	return
 }
 
-// TODO 用户登录
 func LoginController(client *Client, seq string, message []byte) (code uint32, msg string, data interface{}) {
 	code = utils.OK
 	fmt.Println("webSocket_request login接口", client.Addr, seq, string(message))
@@ -28,6 +27,7 @@ func LoginController(client *Client, seq string, message []byte) (code uint32, m
 	if err := json.Unmarshal(message, request); err != nil {
 		code = utils.ParameterIllegal
 		fmt.Println("用户登录 解析数据失败", seq, err)
+		//client.logger.Error("用户登录 解析数据失败",)
 
 		return
 	}
@@ -85,50 +85,50 @@ func LoginController(client *Client, seq string, message []byte) (code uint32, m
 func HeartbeatController(client *Client, seq string, message []byte) (code uint32, msg string, data interface{}) {
 	code = utils.OK
 	fmt.Println("webSocket_request hb接口", client.Addr, seq, string(message))
-	//currentTime := uint64(time.Now().Unix())
-	//
-	//request := &models.HeartBeat{}
-	//if err := json.Unmarshal(message, request); err != nil {
-	//	code = common.ParameterIllegal
-	//	fmt.Println("心跳接口 解析数据失败", seq, err)
-	//
-	//	return
-	//}
-	//
-	//fmt.Println("webSocket_request 心跳接口", client.AppId, client.UserId)
-	//
-	//if !client.IsLogin() {
-	//	fmt.Println("心跳接口 用户未登录", client.AppId, client.UserId, seq)
-	//	code = common.NotLoggedIn
-	//
-	//	return
-	//}
-	//
+	currentTime := uint64(time.Now().Unix())
+
+	request := &HeartBeat{}
+	if err := json.Unmarshal(message, request); err != nil {
+		code = utils.ParameterIllegal
+		fmt.Println("心跳接口 解析数据失败", seq, err)
+
+		return
+	}
+
+	fmt.Println("webSocket_request 心跳接口", client.AppId, client.UserId)
+
+	if !client.IsLogin() {
+		fmt.Println("心跳接口 用户未登录", client.AppId, client.UserId, seq)
+		code = utils.NotLoggedIn
+
+		return
+	}
+	client.Heartbeat(currentTime)
+	// TODO 获取redis用户的登录数据
 	//userOnline, err := cache.GetUserOnlineInfo(client.GetKey())
 	//if err != nil {
 	//	if err == redis.Nil {
-	//		code = common.NotLoggedIn
+	//		code = utils.NotLoggedIn
 	//		fmt.Println("心跳接口 用户未登录", seq, client.AppId, client.UserId)
 	//
 	//		return
 	//	} else {
-	//		code = common.ServerError
+	//		code = utils.ServerError
 	//		fmt.Println("心跳接口 GetUserOnlineInfo", seq, client.AppId, client.UserId, err)
 	//
 	//		return
 	//	}
 	//}
-	//
-	//client.Heartbeat(currentTime)
+
 	//userOnline.Heartbeat(currentTime)
 	//err = cache.SetUserOnlineInfo(client.GetKey(), userOnline)
 	//if err != nil {
-	//	code = common.ServerError
+	//	code = utils.ServerError
 	//	fmt.Println("心跳接口 SetUserOnlineInfo", seq, client.AppId, client.UserId, err)
 	//
 	//	return
 	//}
-	data = "pong"
+	data = "hb"
 	return
 }
 

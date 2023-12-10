@@ -40,7 +40,7 @@ func StartWebSocket(config *config.Config, clientManager *ClientManager, logger 
 		logger.Info("webSocket 建立连接:", zap.String("Addr", conn.RemoteAddr().String()))
 
 		currentTime := uint64(time.Now().Unix())
-		client := NewClient(conn.RemoteAddr().String(), conn, currentTime, clientManager)
+		client := NewClient(conn.RemoteAddr().String(), conn, currentTime, clientManager, logger)
 
 		go client.read()
 		go client.write()

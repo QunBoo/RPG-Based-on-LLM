@@ -2,6 +2,7 @@ package WebSocket
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"sync"
 	"time"
 )
@@ -25,9 +26,10 @@ type ClientManager struct {
 	Handlers        map[string]DisposeFunc
 	HandlersRWMutex sync.RWMutex
 	appIds          []uint32
+	logger          *zap.Logger
 }
 
-func NewClientManager() (clientManager *ClientManager) {
+func NewClientManager(logger *zap.Logger) (clientManager *ClientManager) {
 	clientManager = &ClientManager{
 		Clients:         make(map[*Client]bool),
 		Users:           make(map[string]*Client),
@@ -38,6 +40,7 @@ func NewClientManager() (clientManager *ClientManager) {
 		Handlers:        make(map[string]DisposeFunc),
 		HandlersRWMutex: sync.RWMutex{},
 		appIds:          []uint32{defaultAppId, 102, 103, 104},
+		logger:          logger,
 	}
 	clientManager.Register("login", LoginController)
 	clientManager.Register("heartbeat", HeartbeatController)
@@ -259,8 +262,9 @@ func (manager *ClientManager) EventRegister(client *Client) {
 	manager.AddClients(client)
 
 	fmt.Println("EventRegister 用户建立连接", client.Addr)
+	manager.logger.Info("EventRegister 用户建立连接", zap.String("Client Addr: ", client.Addr))
 
-	// client.Send <- []byte("连接成功")
+	client.Send <- []byte("连接成功")
 }
 
 // 用户登录
@@ -273,9 +277,10 @@ func (manager *ClientManager) EventLogin(login *login) {
 		manager.AddUsers(userKey, login.Client)
 	}
 
-	fmt.Println("EventLogin 用户登录", client.Addr, login.AppId, login.UserId)
-	//TODO:用户登录过程
-	//orderId := helper.GetOrderIdTime()
+	//fmt.Println("EventLogin 用户登录", client.Addr, login.AppId, login.UserId)
+	manager.logger.Info("EventLogin 用户登录", zap.String("addr", client.Addr), zap.Uint32("appId", login.AppId), zap.String("userId", login.UserId))
+	//TODO:用户登录给全体发消息
+	//orderId := GetOrderIdTime()
 	//SendUserMessageAll(login.AppId, login.UserId, orderId, models.MessageCmdEnter, "哈喽~")
 }
 
@@ -417,3 +422,35 @@ func (s *ClientManager) InAppIds(appId uint32) bool {
 	}
 	return inAppId
 }
+
+func GetOrderIdTime() (orderId string) {
+
+	currentTime := time.Now().Nanosecond()
+	orderId = fmt.Sprintf("%d", currentTime)
+
+	return
+}
+
+//// 给全体用户发消息
+//func SendUserMessageAll(appId uint32, userId string, msgId, cmd, message string) (sendResults bool, err error) {
+//	sendResults = true
+//
+//	//currentTime := uint64(time.Now().Unix())
+//	//servers, err := cache.GetServerAll(currentTime)
+//	if err != nil {
+//		fmt.Println("给全体用户发消息", err)
+//
+//		return
+//	}
+//
+//	for _, server := range servers {
+//		if IsLocal(server) {
+//			data := models.GetMsgData(userId, msgId, cmd, message)
+//			AllSendMessages(appId, userId, data)
+//		} else {
+//			grpcclient.SendMsgAll(server, msgId, appId, userId, cmd, message)
+//		}
+//	}
+//
+//	return
+//}

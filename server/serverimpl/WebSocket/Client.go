@@ -4,6 +4,7 @@ import (
 	"FantasticLife/utils"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"runtime/debug"
 
 	"github.com/gorilla/websocket"
@@ -39,10 +40,11 @@ type Client struct {
 	HeartbeatTime     uint64          // 用户上次心跳时间
 	LoginTime         uint64          // 登录时间 登录以后才有
 	ClientManagerHook *ClientManager
+	logger            *zap.Logger
 }
 
 // 初始化
-func NewClient(addr string, socket *websocket.Conn, firstTime uint64, clientManagerHook *ClientManager) (client *Client) {
+func NewClient(addr string, socket *websocket.Conn, firstTime uint64, clientManagerHook *ClientManager, logger *zap.Logger) (client *Client) {
 	client = &Client{
 		Addr:              addr,
 		Socket:            socket,
@@ -50,6 +52,7 @@ func NewClient(addr string, socket *websocket.Conn, firstTime uint64, clientMana
 		FirstTime:         firstTime,
 		HeartbeatTime:     firstTime,
 		ClientManagerHook: clientManagerHook,
+		logger:            logger,
 	}
 
 	return
@@ -71,18 +74,21 @@ func (c *Client) read() {
 	}()
 
 	defer func() {
-		fmt.Println("读取客户端数据 关闭send", c)
+		//fmt.Println("读取客户端数据 关闭send", c)
+		c.logger.Info("读取客户端数据 关闭send", zap.String("addr", c.Addr))
 		close(c.Send)
 	}()
 
 	for {
 		_, message, err := c.Socket.ReadMessage()
 		if err != nil {
-			fmt.Println("读取客户端数据 错误", c.Addr, err)
+			//fmt.Println("读取客户端数据 错误", c.Addr, err)
+			c.logger.Error("读取客户端数据 错误", zap.String("addr", c.Addr), zap.Error(err))
 			return
 		}
 		// 处理程序
-		fmt.Println("[Cli::read()]读取客户端数据 处理:", string(message))
+		//fmt.Println("[Cli::read()]读取客户端数据 处理:", string(message))
+		c.logger.Info("读取客户端数据", zap.String("addr", c.Addr), zap.String("message", string(message)))
 
 		c.ProcessData(message)
 	}
@@ -107,11 +113,13 @@ func (c *Client) write() {
 		case message, ok := <-c.Send:
 			if !ok {
 				// 发送数据错误 关闭连接
-				fmt.Println("Client发送数据 关闭连接", c.Addr, "ok", ok)
+				//fmt.Println("Client发送数据 关闭连接", c.Addr, "ok", ok)
+				c.logger.Info("Client发送数据 关闭连接", zap.String("addr", c.Addr), zap.Bool("ok", ok))
 
 				return
 			}
-			fmt.Printf("[Cli::write()]Client发送数据%s\n", message)
+			//fmt.Printf("[Cli::write()]Client发送数据%s\n", message)
+			c.logger.Info("[Cli::write()] Client发送数据", zap.String("addr", c.Addr), zap.String("message", string(message)))
 			c.Socket.WriteMessage(websocket.TextMessage, message)
 		}
 	}
@@ -130,7 +138,8 @@ func (c *Client) SendMsg(msg []byte) {
 			fmt.Println("SendMsg stop:", r, string(debug.Stack()))
 		}
 	}()
-	fmt.Printf("[Cli::SendMsg]:%s\n", msg)
+	//fmt.Printf("[Cli::SendMsg]:%s\n", msg)
+	c.logger.Info("[Cli::SendMsg] SendMsg", zap.String("addr", c.Addr), zap.String("message", string(msg)))
 	c.Send <- msg
 }
 
@@ -239,7 +248,8 @@ func (c *Client) ProcessData(message []byte) {
 	// fmt.Printf("《《《《headByte: %s\n", headByte)
 	c.SendMsg(headByte)
 
-	fmt.Println("acc_response send", c.Addr, c.AppId, c.UserId, "cmd", cmd, "code", code)
+	//fmt.Println("acc_response send", c.Addr, c.AppId, c.UserId, "cmd", cmd, "code", code)
+	c.logger.Info("acc_response", zap.String("addr", c.Addr), zap.Uint32("appId", c.AppId), zap.String("userId", c.UserId), zap.String("cmd", cmd), zap.Uint32("code", code))
 
 	return
 }
