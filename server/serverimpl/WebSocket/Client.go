@@ -74,7 +74,6 @@ func (c *Client) read() {
 	}()
 
 	defer func() {
-		//fmt.Println("读取客户端数据 关闭send", c)
 		c.logger.Info("读取客户端数据 关闭send", zap.String("addr", c.Addr))
 		close(c.Send)
 	}()
@@ -82,12 +81,10 @@ func (c *Client) read() {
 	for {
 		_, message, err := c.Socket.ReadMessage()
 		if err != nil {
-			//fmt.Println("读取客户端数据 错误", c.Addr, err)
 			c.logger.Error("读取客户端数据 错误", zap.String("addr", c.Addr), zap.Error(err))
 			return
 		}
 		// 处理程序
-		//fmt.Println("[Cli::read()]读取客户端数据 处理:", string(message))
 		c.logger.Info("读取客户端数据", zap.String("addr", c.Addr), zap.String("message", string(message)))
 
 		c.ProcessData(message)
@@ -104,8 +101,12 @@ func (c *Client) write() {
 	}()
 
 	defer func() {
-		//clientManager.Unregister <- c
-		c.Socket.Close()
+		clientManager := c.ClientManagerHook
+		clientManager.Unregister <- c
+		err := c.Socket.Close()
+		if err != nil {
+			return
+		}
 	}()
 
 	for {
@@ -113,14 +114,15 @@ func (c *Client) write() {
 		case message, ok := <-c.Send:
 			if !ok {
 				// 发送数据错误 关闭连接
-				//fmt.Println("Client发送数据 关闭连接", c.Addr, "ok", ok)
 				c.logger.Info("Client发送数据 关闭连接", zap.String("addr", c.Addr), zap.Bool("ok", ok))
 
 				return
 			}
-			//fmt.Printf("[Cli::write()]Client发送数据%s\n", message)
 			c.logger.Info("[Cli::write()] Client发送数据", zap.String("addr", c.Addr), zap.String("message", string(message)))
-			c.Socket.WriteMessage(websocket.TextMessage, message)
+			err := c.Socket.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
@@ -138,7 +140,6 @@ func (c *Client) SendMsg(msg []byte) {
 			fmt.Println("SendMsg stop:", r, string(debug.Stack()))
 		}
 	}()
-	//fmt.Printf("[Cli::SendMsg]:%s\n", msg)
 	c.logger.Info("[Cli::SendMsg] SendMsg", zap.String("addr", c.Addr), zap.String("message", string(msg)))
 	c.Send <- msg
 }
@@ -245,10 +246,8 @@ func (c *Client) ProcessData(message []byte) {
 
 		return
 	}
-	// fmt.Printf("《《《《headByte: %s\n", headByte)
 	c.SendMsg(headByte)
 
-	//fmt.Println("acc_response send", c.Addr, c.AppId, c.UserId, "cmd", cmd, "code", code)
 	c.logger.Info("acc_response", zap.String("addr", c.Addr), zap.Uint32("appId", c.AppId), zap.String("userId", c.UserId), zap.String("cmd", cmd), zap.Uint32("code", code))
 
 	return
