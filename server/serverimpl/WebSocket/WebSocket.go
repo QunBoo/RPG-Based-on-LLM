@@ -49,7 +49,7 @@ func StartWebSocket(config *config.Config, clientManager *ClientManager, logger 
 	}
 	http.HandleFunc("/acc", wsPage)
 
-	// 添加处理程序
+	// 启动管道事务的处理，包括建立连接、用户登录、断开连接、广播事件
 	go clientManager.start()
 	//fmt.Println("WebSocket 启动程序成功", "serverIp:", serverIp, "rpcPort:", serverPort)
 	logger.Info("WebSocket 启动程序成功", zap.String("serverIp", serverIp), zap.String("rpcPort", serverPort))

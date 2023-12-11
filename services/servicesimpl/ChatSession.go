@@ -2,6 +2,7 @@ package servicesimpl
 
 import (
 	"FantasticLife/server"
+	"FantasticLife/server/serverimpl/WebSocket"
 	"FantasticLife/services"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -12,8 +13,8 @@ import (
 
 type ChatSessionServiceImpl struct {
 	ChatSessionList map[string]*ChatSession
-
-	logger *zap.Logger
+	ClientManager   *WebSocket.ClientManager
+	logger          *zap.Logger
 }
 type ChatSession struct {
 	ChatSessionId string
@@ -71,13 +72,14 @@ func (s *ChatSessionServiceImpl) GetUserList(c *gin.Context) {
 
 	fmt.Println("http_request 查看全部在线用户", appId)
 
-	//data := make(map[string]interface{})
+	data := make(map[string]interface{})
 
 	//userList := WebSocket.ClientManager.GetUserList(appId)
-	//data["userList"] = userList
-	//data["userCount"] = len(userList)
+	userList := s.ClientManager.GetUserList(appId)
+	data["userList"] = userList
+	data["userCount"] = len(userList)
 	c.JSON(http.StatusOK, gin.H{
-		"message": "TODO",
+		"message": data,
 	})
 }
 
@@ -89,11 +91,12 @@ func NewChatSession(llmbot server.LLMBOT) *ChatSession {
 	}
 }
 
-func NewChatSessionService(zapLogger *zap.Logger, defaultSesstion *ChatSession) services.ChatSessionService {
+func NewChatSessionService(zapLogger *zap.Logger, defaultSesstion *ChatSession, ClientManager *WebSocket.ClientManager) services.ChatSessionService {
 	SessionList := make(map[string]*ChatSession)
 	SessionList["Default"] = defaultSesstion
 	CSService := ChatSessionServiceImpl{
 		ChatSessionList: SessionList,
+		ClientManager:   ClientManager,
 		logger:          zapLogger,
 	}
 
