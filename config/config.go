@@ -23,6 +23,13 @@ type Config struct {
 		HttpUrl       string
 		WebSocketUrl  string
 	}
+	Redis struct {
+		Addr         string
+		Password     string
+		DB           int
+		PoolSize     int
+		MinIdleConns int
+	}
 }
 
 func GetConfig() *Config {

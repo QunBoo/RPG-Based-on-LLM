@@ -3,9 +3,11 @@ package servicesimpl
 import (
 	"FantasticLife/server"
 	"FantasticLife/services"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
 
 type ChatSessionServiceImpl struct {
@@ -60,6 +62,22 @@ func (s *ChatSessionServiceImpl) InitSession(c *gin.Context) {
 	TempChatSessionP.ChatHistory = nil
 	c.JSON(http.StatusOK, gin.H{
 		"message": "InitSession Success!",
+	})
+}
+func (s *ChatSessionServiceImpl) GetUserList(c *gin.Context) {
+	appIdStr := c.Query("appId")
+	appIdUint64, _ := strconv.ParseInt(appIdStr, 10, 32)
+	appId := uint32(appIdUint64)
+
+	fmt.Println("http_request 查看全部在线用户", appId)
+
+	//data := make(map[string]interface{})
+
+	//userList := WebSocket.ClientManager.GetUserList(appId)
+	//data["userList"] = userList
+	//data["userCount"] = len(userList)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "TODO",
 	})
 }
 
