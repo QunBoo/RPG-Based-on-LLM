@@ -30,7 +30,7 @@ func server(param interface{}) (result bool) {
 	return
 }
 
-// TODO 服务下线
+// TODO Redis中服务器下线
 func serverDefer(param interface{}) (result bool) {
 	defer func() {
 		if r := recover(); r != nil {

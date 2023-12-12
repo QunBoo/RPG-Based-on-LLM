@@ -278,7 +278,7 @@ func (manager *ClientManager) EventLogin(login *login) {
 	}
 
 	manager.logger.Info("EventLogin 用户登录", zap.String("addr", client.Addr), zap.Uint32("appId", login.AppId), zap.String("userId", login.UserId))
-	//TODO:用户登录给全体发消息
+
 	orderId := GetOrderIdTime()
 	result, err := manager.SendUserMessageAll(login.AppId, login.UserId, orderId, utils.MessageCmdEnter, "哈喽~")
 	if err != nil {
@@ -312,7 +312,7 @@ func (manager *ClientManager) EventUnregister(client *Client) {
 
 	fmt.Println("EventUnregister 用户断开连接", client.Addr, client.AppId, client.UserId)
 	manager.logger.Info("EventUnregister 用户断开连接", zap.String("addr", client.Addr), zap.Uint32("appId", client.AppId), zap.String("userId", client.UserId))
-	//TODO:用户断开连接过程
+
 	if client.UserId != "" {
 		orderId := GetOrderIdTime()
 		_, err := manager.SendUserMessageAll(client.AppId, client.UserId, orderId, utils.MessageCmdExit, "用户已经离开~")
