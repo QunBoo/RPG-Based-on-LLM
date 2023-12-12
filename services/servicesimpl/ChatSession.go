@@ -4,43 +4,23 @@ import (
 	"FantasticLife/server"
 	"FantasticLife/server/serverimpl/WebSocket"
 	"FantasticLife/services"
+	"FantasticLife/utils"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"net/http"
-	"sync"
+	"strconv"
 )
-
-type DisposeFunc func(client *WebSocket.Client, seq string, message []byte) (code uint32, msg string, data interface{})
 
 type ChatSessionServiceImpl struct {
 	ChatSessionList map[string]*ChatSession
-	handlers        map[string]DisposeFunc
-	handlersRWMutex sync.RWMutex
+	ClientManager   *WebSocket.ClientManager
 	logger          *zap.Logger
 }
 type ChatSession struct {
 	ChatSessionId string
 	ChatHistory   []map[string]string
 	LLMBOTInter   server.LLMBOT
-}
-
-// 连接功能
-// handler注册到全局的map handlers[key]里
-func (s *ChatSessionServiceImpl) Register(key string, value DisposeFunc) {
-	s.handlersRWMutex.Lock()
-	defer s.handlersRWMutex.Unlock()
-	s.handlers[key] = value
-
-	return
-}
-
-func (s *ChatSessionServiceImpl) getHandlers(key string) (value DisposeFunc, ok bool) {
-	s.handlersRWMutex.RLock()
-	defer s.handlersRWMutex.RUnlock()
-
-	value, ok = s.handlers[key]
-
-	return
 }
 
 // 和Bot的交互功能
@@ -86,6 +66,54 @@ func (s *ChatSessionServiceImpl) InitSession(c *gin.Context) {
 		"message": "InitSession Success!",
 	})
 }
+func (s *ChatSessionServiceImpl) GetUserList(c *gin.Context) {
+	appIdStr := c.Query("appId")
+	appIdUint64, _ := strconv.ParseInt(appIdStr, 10, 32)
+	appId := uint32(appIdUint64)
+
+	//fmt.Println("http_request 查看全部在线用户", appId)
+	s.logger.Info("http_request 查看全部在线用户", zap.Uint32("appId", appId))
+
+	data := make(map[string]interface{})
+
+	//userList := WebSocket.ClientManager.GetUserList(appId)
+	userList := s.ClientManager.GetUserList(appId)
+	data["userList"] = userList
+	data["userCount"] = len(userList)
+	c.JSON(http.StatusOK, gin.H{
+		"message": data,
+	})
+}
+func (s *ChatSessionServiceImpl) ChatSessionSendMessageAll(c *gin.Context) {
+	// 获取参数
+	appIdStr := c.PostForm("appId")
+	userId := c.PostForm("userId")
+	msgId := c.PostForm("msgId")
+	message := c.PostForm("message")
+	appIdUint64, _ := strconv.ParseInt(appIdStr, 10, 32)
+	appId := uint32(appIdUint64)
+
+	fmt.Println("http_request 给全体用户发送消息", appIdStr, userId, msgId, message)
+
+	data := make(map[string]interface{})
+	//if cache.SeqDuplicates(msgId) {
+	//	fmt.Println("给用户发送消息 重复提交:", msgId)
+	//	controllers.Response(c, common.OK, "", data)
+	//
+	//	return
+	//}
+
+	sendResults, err := s.ClientManager.SendUserMessageAll(appId, userId, msgId, utils.MessageCmdMsg, message)
+	if err != nil {
+		s.logger.Error("发送消息报错", zap.Error(err))
+	}
+
+	data["sendResults"] = sendResults
+
+	c.JSON(utils.OK, gin.H{
+		"message": data,
+	})
+}
 
 func NewChatSession(llmbot server.LLMBOT) *ChatSession {
 	return &ChatSession{
@@ -95,20 +123,14 @@ func NewChatSession(llmbot server.LLMBOT) *ChatSession {
 	}
 }
 
-// TODO：初始化ChatSession，研究fx怎么用
-func NewChatSessionService(zapLogger *zap.Logger, defaultSesstion *ChatSession) services.ChatSessionService {
+func NewChatSessionService(zapLogger *zap.Logger, defaultSesstion *ChatSession, ClientManager *WebSocket.ClientManager) services.ChatSessionService {
 	SessionList := make(map[string]*ChatSession)
 	SessionList["Default"] = defaultSesstion
 	CSService := ChatSessionServiceImpl{
 		ChatSessionList: SessionList,
-		handlers:        make(map[string]DisposeFunc),
-		handlersRWMutex: sync.RWMutex{},
+		ClientManager:   ClientManager,
 		logger:          zapLogger,
 	}
-	// TODO 注册处理函数
-	CSService.Register("login", WebSocket.LoginController)
-	CSService.Register("heartbeat", WebSocket.HeartbeatController)
-	CSService.Register("ping", WebSocket.PingController)
 
 	return &CSService
 }

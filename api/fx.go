@@ -44,7 +44,6 @@ func HttpServerLifecycle(lc fx.Lifecycle, servers Servers, logger *zap.Logger, c
 	})
 }
 
-// TODO：写第二个server，启动websocket服务器程序，设定webSocketPort
 var Module = fx.Module("router",
 	middleware.Module,
 	fx.Provide(

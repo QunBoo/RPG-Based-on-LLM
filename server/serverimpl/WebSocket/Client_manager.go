@@ -1,32 +1,69 @@
 package WebSocket
 
 import (
+	"FantasticLife/utils"
 	"fmt"
+	"go.uber.org/zap"
 	"sync"
 	"time"
 )
 
+const (
+	defaultAppId = 101 // 默认平台Id
+)
+
+type DisposeFunc func(client *Client, seq string, message []byte) (code uint32, msg string, data interface{})
+
 // 连接管理
 type ClientManager struct {
-	Clients     map[*Client]bool   // 全部的连接
-	ClientsLock sync.RWMutex       // 读写锁
-	Users       map[string]*Client // 登录的用户 // appId+uuid
-	UserLock    sync.RWMutex       // 读写锁
-	Register    chan *Client       // 连接连接处理
-	Login       chan *login        // 用户登录处理
-	Unregister  chan *Client       // 断开连接处理程序
-	Broadcast   chan []byte        // 广播 向全部成员发送数据
+	Clients         map[*Client]bool   // 全部的连接
+	ClientsLock     sync.RWMutex       // 读写锁
+	Users           map[string]*Client // 登录的用户 // appId+uuid
+	UserLock        sync.RWMutex       // 读写锁
+	RegisterChan    chan *Client       // 连接连接处理
+	Login           chan *login        // 用户登录处理
+	Unregister      chan *Client       // 断开连接处理程序
+	Broadcast       chan []byte        // 广播 向全部成员发送数据
+	Handlers        map[string]DisposeFunc
+	HandlersRWMutex sync.RWMutex
+	appIds          []uint32
+	logger          *zap.Logger
 }
 
-func NewClientManager() (clientManager *ClientManager) {
+func NewClientManager(logger *zap.Logger) (clientManager *ClientManager) {
 	clientManager = &ClientManager{
-		Clients:    make(map[*Client]bool),
-		Users:      make(map[string]*Client),
-		Register:   make(chan *Client, 1000),
-		Login:      make(chan *login, 1000),
-		Unregister: make(chan *Client, 1000),
-		Broadcast:  make(chan []byte, 1000),
+		Clients:         make(map[*Client]bool),
+		Users:           make(map[string]*Client),
+		RegisterChan:    make(chan *Client, 1000),
+		Login:           make(chan *login, 1000),
+		Unregister:      make(chan *Client, 1000),
+		Broadcast:       make(chan []byte, 1000),
+		Handlers:        make(map[string]DisposeFunc),
+		HandlersRWMutex: sync.RWMutex{},
+		appIds:          []uint32{defaultAppId, 102, 103, 104},
+		logger:          logger,
 	}
+	clientManager.Register("login", LoginController)
+	clientManager.Register("heartbeat", HeartbeatController)
+	clientManager.Register("ping", PingController)
+
+	return
+}
+
+// 连接功能
+// handler注册到全局的map handlers[key]里
+func (manager *ClientManager) Register(key string, value DisposeFunc) {
+	manager.HandlersRWMutex.Lock()
+	defer manager.HandlersRWMutex.Unlock()
+	manager.Handlers[key] = value
+	return
+}
+
+func (manager *ClientManager) GetHandlers(key string) (value DisposeFunc, ok bool) {
+	manager.HandlersRWMutex.RLock()
+	defer manager.HandlersRWMutex.RUnlock()
+
+	value, ok = manager.Handlers[key]
 
 	return
 }
@@ -225,9 +262,9 @@ func (manager *ClientManager) sendAppIdAll(message []byte, appId uint32, ignoreC
 func (manager *ClientManager) EventRegister(client *Client) {
 	manager.AddClients(client)
 
-	fmt.Println("EventRegister 用户建立连接", client.Addr)
+	manager.logger.Info("EventRegister 用户建立连接", zap.String("Client Addr: ", client.Addr))
 
-	// client.Send <- []byte("连接成功")
+	client.Send <- []byte("连接成功")
 }
 
 // 用户登录
@@ -240,10 +277,15 @@ func (manager *ClientManager) EventLogin(login *login) {
 		manager.AddUsers(userKey, login.Client)
 	}
 
-	fmt.Println("EventLogin 用户登录", client.Addr, login.AppId, login.UserId)
-	//TODO:用户登录过程
-	//orderId := helper.GetOrderIdTime()
-	//SendUserMessageAll(login.AppId, login.UserId, orderId, models.MessageCmdEnter, "哈喽~")
+	manager.logger.Info("EventLogin 用户登录", zap.String("addr", client.Addr), zap.Uint32("appId", login.AppId), zap.String("userId", login.UserId))
+	//TODO:用户登录给全体发消息
+	orderId := GetOrderIdTime()
+	result, err := manager.SendUserMessageAll(login.AppId, login.UserId, orderId, utils.MessageCmdEnter, "哈喽~")
+	if err != nil {
+		manager.logger.Error("EventLogin 用户登录给全体发消息", zap.Error(err))
+		return
+	}
+	manager.logger.Info("EventLogin 用户登录给全体发消息", zap.Bool("result", result))
 }
 
 // 用户断开连接
@@ -269,18 +311,23 @@ func (manager *ClientManager) EventUnregister(client *Client) {
 	// close(client.Send)
 
 	fmt.Println("EventUnregister 用户断开连接", client.Addr, client.AppId, client.UserId)
+	manager.logger.Info("EventUnregister 用户断开连接", zap.String("addr", client.Addr), zap.Uint32("appId", client.AppId), zap.String("userId", client.UserId))
 	//TODO:用户断开连接过程
-	//if client.UserId != "" {
-	//	orderId := helper.GetOrderIdTime()
-	//	SendUserMessageAll(client.AppId, client.UserId, orderId, models.MessageCmdExit, "用户已经离开~")
-	//}
+	if client.UserId != "" {
+		orderId := GetOrderIdTime()
+		_, err := manager.SendUserMessageAll(client.AppId, client.UserId, orderId, utils.MessageCmdExit, "用户已经离开~")
+		if err != nil {
+			manager.logger.Error("EventUnregister 用户断开连接给全体发消息", zap.Error(err))
+			return
+		}
+	}
 }
 
 // 管道处理程序，管道事务的处理，包括建立连接、用户登录、断开连接、广播事件
 func (manager *ClientManager) start() {
 	for {
 		select {
-		case conn := <-manager.Register:
+		case conn := <-manager.RegisterChan:
 			// 建立连接事件
 			manager.EventRegister(conn)
 
@@ -308,25 +355,25 @@ func (manager *ClientManager) start() {
 
 /**************************  manager info  ***************************************/
 // 获取管理者信息
-func (clientManager *ClientManager) GetManagerInfo(isDebug string) (managerInfo map[string]interface{}) {
+func (manager *ClientManager) GetManagerInfo(isDebug string) (managerInfo map[string]interface{}) {
 	managerInfo = make(map[string]interface{})
 
-	managerInfo["clientsLen"] = clientManager.GetClientsLen()        // 客户端连接数
-	managerInfo["usersLen"] = clientManager.GetUsersLen()            // 登录用户数
-	managerInfo["chanRegisterLen"] = len(clientManager.Register)     // 未处理连接事件数
-	managerInfo["chanLoginLen"] = len(clientManager.Login)           // 未处理登录事件数
-	managerInfo["chanUnregisterLen"] = len(clientManager.Unregister) // 未处理退出登录事件数
-	managerInfo["chanBroadcastLen"] = len(clientManager.Broadcast)   // 未处理广播事件数
+	managerInfo["clientsLen"] = manager.GetClientsLen()        // 客户端连接数
+	managerInfo["usersLen"] = manager.GetUsersLen()            // 登录用户数
+	managerInfo["chanRegisterLen"] = len(manager.RegisterChan) // 未处理连接事件数
+	managerInfo["chanLoginLen"] = len(manager.Login)           // 未处理登录事件数
+	managerInfo["chanUnregisterLen"] = len(manager.Unregister) // 未处理退出登录事件数
+	managerInfo["chanBroadcastLen"] = len(manager.Broadcast)   // 未处理广播事件数
 
 	if isDebug == "true" {
 		addrList := make([]string, 0)
-		clientManager.ClientsRange(func(client *Client, value bool) (result bool) {
+		manager.ClientsRange(func(client *Client, value bool) (result bool) {
 			addrList = append(addrList, client.Addr)
 
 			return true
 		})
 
-		users := clientManager.GetUserKeys()
+		users := manager.GetUserKeys()
 
 		managerInfo["clients"] = addrList // 客户端列表
 		managerInfo["users"] = users      // 登录用户列表
@@ -336,17 +383,17 @@ func (clientManager *ClientManager) GetManagerInfo(isDebug string) (managerInfo 
 }
 
 // 获取用户所在的连接
-func (clientManager *ClientManager) GetUserClient_bug(appId uint32, userId string) (client *Client) {
-	client = clientManager.GetUserClient(appId, userId)
+func (manager *ClientManager) GetUserClient_bug(appId uint32, userId string) (client *Client) {
+	client = manager.GetUserClient(appId, userId)
 
 	return
 }
 
 // 定时清理超时连接
-func (clientManager *ClientManager) ClearTimeoutConnections() {
+func (manager *ClientManager) ClearTimeoutConnections() {
 	currentTime := uint64(time.Now().Unix())
 
-	clients := clientManager.GetClients()
+	clients := manager.GetClients()
 	for client := range clients {
 		if client.IsHeartbeatTimeout(currentTime) {
 			fmt.Println("心跳时间超时 关闭连接", client.Addr, client.UserId, client.LoginTime, client.HeartbeatTime)
@@ -357,18 +404,62 @@ func (clientManager *ClientManager) ClearTimeoutConnections() {
 }
 
 // 获取全部用户
-func (clientManager *ClientManager) GetUserList_bug(appId uint32) (userList []string) {
+func (manager *ClientManager) GetUserList_bug(appId uint32) (userList []string) {
 	fmt.Println("获取全部用户", appId)
 
-	userList = clientManager.GetUserList(appId)
+	userList = manager.GetUserList(appId)
 
 	return
 }
 
 // 全员广播
-func (clientManager *ClientManager) AllSendMessages(appId uint32, userId string, data string) {
+func (manager *ClientManager) AllSendMessages(appId uint32, userId string, data string) {
 	fmt.Println("全员广播", appId, userId, data)
 	//发送消息排除自己
-	ignoreClient := clientManager.GetUserClient(appId, userId)
-	clientManager.sendAppIdAll([]byte(data), appId, ignoreClient)
+	ignoreClient := manager.GetUserClient(appId, userId)
+	manager.sendAppIdAll([]byte(data), appId, ignoreClient)
+}
+
+func (manager *ClientManager) InAppIds(appId uint32) bool {
+	inAppId := false
+	for _, value := range manager.appIds {
+		if value == appId {
+			inAppId = true
+
+			return inAppId
+		}
+	}
+	return inAppId
+}
+
+func (manager *ClientManager) SendUserMessageAll(appId uint32, userId string, msgId, cmd, message string) (sendResults bool, err error) {
+	sendResults = true
+
+	//currentTime := uint64(time.Now().Unix())
+	//servers, err := cache.GetServerAll(currentTime)
+	if err != nil {
+		fmt.Println("给全体用户发消息", err)
+		manager.logger.Error("给全体用户发消息", zap.Error(err))
+		return
+	}
+
+	//for _, server := range servers {
+	//	if IsLocal(server) {
+	//		data := models.GetMsgData(userId, msgId, cmd, message)
+	//		AllSendMessages(appId, userId, data)
+	//	} else {
+	//		grpcclient.SendMsgAll(server, msgId, appId, userId, cmd, message)
+	//	}
+	//}
+	ignoreClient := manager.GetUserClient(appId, userId)
+	manager.sendAppIdAll([]byte(message), appId, ignoreClient)
+	return sendResults, err
+}
+
+func GetOrderIdTime() (orderId string) {
+
+	currentTime := time.Now().Nanosecond()
+	orderId = fmt.Sprintf("%d", currentTime)
+
+	return
 }
