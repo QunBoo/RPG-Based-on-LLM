@@ -81,7 +81,6 @@ func LoginController(client *Client, seq string, message []byte) (code uint32, m
 	return
 }
 
-// TODO 心跳接口
 func HeartbeatController(client *Client, seq string, message []byte) (code uint32, msg string, data interface{}) {
 	code = utils.OK
 	fmt.Println("webSocket_request hb接口", client.Addr, seq, string(message))
