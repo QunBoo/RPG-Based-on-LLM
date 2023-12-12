@@ -47,6 +47,7 @@ func StartWebSocket(config *config.Config, clientManager *ClientManager, logger 
 		// 用户连接事件
 		clientManager.RegisterChan <- client
 	}
+
 	http.HandleFunc("/acc", wsPage)
 
 	// 启动管道事务的处理，包括建立连接、用户登录、断开连接、广播事件
