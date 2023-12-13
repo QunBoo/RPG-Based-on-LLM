@@ -432,7 +432,7 @@
 
                 $.ajax({
                     type: "POST",
-                    url: 'http://{{ .httpUrl }}/user/sendMessageAll',
+                    url: 'http://{{ .httpUrl }}/api/v1/ChatSessionSendMessageAll',
                     data: {
                         appId: appId,
                         userId: person,
@@ -454,7 +454,7 @@
         function getUserList() {
             $.ajax({
                 type: "GET",
-                url: "http://{{ .httpUrl }}/user/list?appId=" + appId,
+                url: "http://{{ .httpUrl }}/api/v1/userList?appId=" + appId,
                 dataType: "json",
                 success: function(data) {
                     console.log("user list:" + data.code + "userList:" + data.data.userList);
