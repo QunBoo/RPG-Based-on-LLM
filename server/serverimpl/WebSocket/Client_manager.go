@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	defaultAppId = 101 // 默认平台Id
+	DefaultAppId = 101 // 默认平台Id
 )
 
 type DisposeFunc func(client *Client, seq string, message []byte) (code uint32, msg string, data interface{})
@@ -40,7 +40,7 @@ func NewClientManager(logger *zap.Logger) (clientManager *ClientManager) {
 		Broadcast:       make(chan []byte, 1000),
 		Handlers:        make(map[string]DisposeFunc),
 		HandlersRWMutex: sync.RWMutex{},
-		appIds:          []uint32{defaultAppId, 102, 103, 104},
+		appIds:          []uint32{DefaultAppId, 102, 103, 104},
 		logger:          logger,
 	}
 	clientManager.Register("login", LoginController)

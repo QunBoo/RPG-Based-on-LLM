@@ -1,6 +1,7 @@
 package servicesimpl
 
 import (
+	"FantasticLife/server/serverimpl/WebSocket"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -19,6 +20,10 @@ func Index(c *gin.Context) {
 	//if !WebSocket.InAppIds(appId) {
 	//	appId = WebSocket.GetDefaultAppId()
 	//}
+	// 如果没有传入appId，那么就默认为101
+	if appId == 0 {
+		appId = WebSocket.DefaultAppId
+	}
 
 	fmt.Println("http_request 聊天首页", appId)
 	//设定模板index.tpl所需要使用的数据，通过c.HTML传输过去
