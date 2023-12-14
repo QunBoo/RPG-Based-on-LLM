@@ -442,6 +442,7 @@ func (manager *ClientManager) SendUserMessageAll(appId uint32, userId string, ms
 		manager.logger.Error("给全体用户发消息", zap.Error(err))
 		return
 	}
+	data := utils.GetMsgData(userId, msgId, cmd, message)
 
 	//for _, server := range servers {
 	//	if IsLocal(server) {
@@ -452,7 +453,7 @@ func (manager *ClientManager) SendUserMessageAll(appId uint32, userId string, ms
 	//	}
 	//}
 	ignoreClient := manager.GetUserClient(appId, userId)
-	manager.sendAppIdAll([]byte(message), appId, ignoreClient)
+	manager.sendAppIdAll([]byte(data), appId, ignoreClient)
 	return sendResults, err
 }
 

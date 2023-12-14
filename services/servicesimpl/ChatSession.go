@@ -130,9 +130,7 @@ func (s *ChatSessionServiceImpl) ChatSessionSendMessageAll(c *gin.Context) {
 
 	data["sendResults"] = sendResults
 
-	c.JSON(utils.OK, gin.H{
-		"message": data,
-	})
+	Response(c, utils.OK, "", data)
 }
 
 func NewChatSession(llmbot server.LLMBOT) *ChatSession {
