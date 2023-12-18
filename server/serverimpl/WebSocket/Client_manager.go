@@ -3,6 +3,7 @@ package WebSocket
 import (
 	"FantasticLife/utils"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"sync"
 	"time"
@@ -28,9 +29,10 @@ type ClientManager struct {
 	HandlersRWMutex sync.RWMutex
 	appIds          []uint32
 	logger          *zap.Logger
+	RedisCli        *redis.Client
 }
 
-func NewClientManager(logger *zap.Logger) (clientManager *ClientManager) {
+func NewClientManager(logger *zap.Logger, RedisCli *redis.Client) (clientManager *ClientManager) {
 	clientManager = &ClientManager{
 		Clients:         make(map[*Client]bool),
 		Users:           make(map[string]*Client),
@@ -42,6 +44,7 @@ func NewClientManager(logger *zap.Logger) (clientManager *ClientManager) {
 		HandlersRWMutex: sync.RWMutex{},
 		appIds:          []uint32{DefaultAppId, 102, 103, 104},
 		logger:          logger,
+		RedisCli:        RedisCli,
 	}
 	clientManager.Register("login", LoginController)
 	clientManager.Register("heartbeat", HeartbeatController)
