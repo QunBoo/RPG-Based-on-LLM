@@ -4,6 +4,7 @@ import (
 	"FantasticLife/utils"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"sync"
 	"time"
@@ -30,6 +31,8 @@ type ClientManager struct {
 	appIds          []uint32
 	logger          *zap.Logger
 	RedisCli        *redis.Client
+	ServerIp        string
+	ServerPort      string
 }
 
 func NewClientManager(logger *zap.Logger, RedisCli *redis.Client) (clientManager *ClientManager) {
@@ -45,10 +48,16 @@ func NewClientManager(logger *zap.Logger, RedisCli *redis.Client) (clientManager
 		appIds:          []uint32{DefaultAppId, 102, 103, 104},
 		logger:          logger,
 		RedisCli:        RedisCli,
+		ServerIp:        utils.GetServerIp(),
+		ServerPort:      viper.GetString("app.RpcPort"),
 	}
+	// 注册处理器
 	clientManager.Register("login", LoginController)
 	clientManager.Register("heartbeat", HeartbeatController)
 	clientManager.Register("ping", PingController)
+	// 注册定时任务
+	clientManager.ServerInit()
+	clientManager.CleanConnectionInit()
 
 	return
 }
