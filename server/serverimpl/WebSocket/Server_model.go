@@ -12,7 +12,6 @@ type Server struct {
 }
 
 func NewServer(ip string, port string) *Server {
-
 	return &Server{Ip: ip, Port: port}
 }
 
