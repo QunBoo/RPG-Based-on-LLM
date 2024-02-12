@@ -63,19 +63,43 @@ func SpeakToWXYY(apiKey, secretKey string) {
 	accessToken := accessToken1.AccessToken
 
 	// 步骤二：调用文心一言API发送信息
-	apiEndpoint := fmt.Sprintf("https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro?access_token=%s", accessToken)
-	message := []byte(`{  
-   "messages": [  
-    {"role":"user","content":"请你作为一个文字类型的RPG游戏的讲述者，这个游戏的剧情中会根据我的选择而不同，你将作为这个故事的讲述者，并为我讲述故事并生成选项以供我选择我要做什么，我将会说出我的决策，以供你生成下一段故事。我希望以《哈利波特》的世界观作为故事背景，我想要扮演一个和哈利波特同岁的魔法师，与哈利波特、赫敏、马尔福同一年入学，将与他们共同冒险一次只讲述一段故事，每当你描绘完一段故事后，请你停止生成，并等待我的选择。现在，请为我讲述第一段故事"}  
-   ]  
- }`)
-	resp, err = http.Post(apiEndpoint, "application/json", bytes.NewBuffer(message))
+	apiEndpoint := fmt.Sprintf("https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/plugin/dswdc1hehb9y4bi8/?access_token=%s", accessToken)
+
+	// 定义一个结构体来匹配新的 JSON 结构
+	payloadStruct := struct {
+		Query   string   `json:"query"`
+		Plugins []string `json:"plugins"`
+		Verbose bool     `json:"verbose"`
+	}{
+		Query:   "高等数字通信这门课学分多少？",
+		Plugins: []string{"uuid-zhishiku"},
+		Verbose: true,
+	}
+
+	// 将结构体序列化为 JSON
+	payloadBytes, err := json.Marshal(payloadStruct)
+	if err != nil {
+		// 处理错误
+		fmt.Println("Error marshalling JSON:", err)
+		return
+	}
+
+	// 使用序列化后的 JSON 作为请求体
+	resp1, err := http.Post(apiEndpoint, "application/json", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		// 处理错误
+		fmt.Println("Error making HTTP request:", err)
+		return
+	}
+
+	// 确保响应体被关闭
+	defer resp1.Body.Close()
 	if err != nil {
 		fmt.Println("Failed to send message:")
 		return
 	}
-	defer resp.Body.Close()
-	body, err = ioutil.ReadAll(resp.Body)
+	defer resp1.Body.Close()
+	body, err = ioutil.ReadAll(resp1.Body)
 	if err != nil {
 		fmt.Println("Failed to read API response:", err)
 		return

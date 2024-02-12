@@ -26,12 +26,18 @@ type ChatSession struct {
 // 和Bot的交互功能
 func (s *ChatSessionServiceImpl) SendMessageToBot(c *gin.Context) {
 	var input struct {
-		SessionId string `json:"session_id"`
+		SessionId string `json:"sessionId"`
 		Messages  string `json:"messages"`
 	}
 	// 从请求中读取 JSON 数据
 	if err := c.BindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	//如果不存在SessionId，则输出错误，返回，打印当前的ChatSessionList
+	if _, ok := s.ChatSessionList[input.SessionId]; !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "SessionId not exist!", "SessionId": input.SessionId})
+		s.logger.Info("SendMessageToBot", zap.Any("ChatSessionList", s.ChatSessionList))
 		return
 	}
 	TempChatSessionP := s.ChatSessionList[input.SessionId]
@@ -103,6 +109,90 @@ func Response(c *gin.Context, code uint32, msg string, data map[string]interface
 	c.JSON(http.StatusOK, message)
 
 	return
+}
+
+// 登录
+func (s *ChatSessionServiceImpl) Login(c *gin.Context) {
+	// 需要username, password
+	var userInfo struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	// 从请求中读取 JSON 数据
+	if err := c.BindJSON(&userInfo); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// 生成password_hash
+	passwordHash := utils.GeneratePasswordHash(userInfo.Password)
+	// 查询数据库
+	dbConn := s.ClientManager.MysqlCli
+	var userDB struct {
+		Username     string `json:"username"`
+		PasswordHash string `json:"password_hash"`
+	}
+	result := dbConn.Table("users").Where("username = ?", userInfo.Username).First(&userDB)
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": result.Error})
+		return
+	}
+	if userDB.PasswordHash != passwordHash {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password Error!"})
+		return
+	}
+	// 生成token
+	token, err := utils.GenerateJWT(userInfo.Username)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login Success!",
+		"token":   token,
+	})
+}
+
+// 注册
+func (s *ChatSessionServiceImpl) SignUp(c *gin.Context) {
+	// 需要username, password, email
+	var userInfo struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	// 从请求中读取 JSON 数据
+	if err := c.BindJSON(&userInfo); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	//// 获取当前数据库user_id的最大值
+	//dbConn := s.ClientManager.MysqlCli
+	//var maxUserId uint32
+	//dbConn.Table("user").Select("max(user_id)").Scan(&maxUserId)
+	//
+	//// 生成新的user_id
+	//curUserId := maxUserId + 1
+	// 生成password_hash
+	passwordHash := utils.GeneratePasswordHash(userInfo.Password)
+	type UserDB struct {
+		Username     string `json:"username"`
+		PasswordHash string `json:"password_hash"`
+		Email        string `json:"email"`
+	}
+	//	// 插入数据库
+	dbConn := s.ClientManager.MysqlCli
+	result := dbConn.Table("users").Create(&UserDB{Username: userInfo.Username, PasswordHash: passwordHash, Email: userInfo.Email})
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": result.Error})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "SignUp Success!",
+	})
+	return
+
 }
 func (s *ChatSessionServiceImpl) ChatSessionSendMessageAll(c *gin.Context) {
 	// 获取参数

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"sync"
 	"time"
 )
@@ -30,9 +31,10 @@ type ClientManager struct {
 	appIds          []uint32
 	logger          *zap.Logger
 	RedisCli        *redis.Client
+	MysqlCli        *gorm.DB
 }
 
-func NewClientManager(logger *zap.Logger, RedisCli *redis.Client) (clientManager *ClientManager) {
+func NewClientManager(logger *zap.Logger, RedisCli *redis.Client, MysqlCli *gorm.DB) (clientManager *ClientManager) {
 	clientManager = &ClientManager{
 		Clients:         make(map[*Client]bool),
 		Users:           make(map[string]*Client),
@@ -45,6 +47,7 @@ func NewClientManager(logger *zap.Logger, RedisCli *redis.Client) (clientManager
 		appIds:          []uint32{DefaultAppId, 102, 103, 104},
 		logger:          logger,
 		RedisCli:        RedisCli,
+		MysqlCli:        MysqlCli,
 	}
 	clientManager.Register("login", LoginController)
 	clientManager.Register("heartbeat", HeartbeatController)

@@ -23,6 +23,7 @@ func (r *Router) Handler() http.Handler {
 	engine := gin.New()
 	engine.LoadHTMLGlob("views/**/*")
 	engine.Use(gin.Recovery(), r.CorsMiddleware)
+	//engine.Use(utils.AuthenticateJWT())    //使用JWT验证
 	engine.Use(gin.Recovery(), r.ZapLogger)
 	{
 		engine.GET("/", func(c *gin.Context) {
@@ -42,6 +43,8 @@ func (r *Router) Handler() http.Handler {
 			apiV1.POST("completionsTest", r.LLMBotServer.SpeakToBot_server)
 			apiV1.POST("ChatInit", r.ChatSession.InitSession)
 			apiV1.POST("completions", r.ChatSession.SendMessageToBot)
+			apiV1.POST("signUp", r.ChatSession.SignUp)
+			apiV1.POST("login", r.ChatSession.Login)
 		}
 
 	}

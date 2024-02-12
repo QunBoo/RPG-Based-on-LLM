@@ -7,6 +7,8 @@ type ChatSessionService interface {
 	InitSession(c *gin.Context)
 	GetUserList(c *gin.Context)
 	ChatSessionSendMessageAll(c *gin.Context)
+	SignUp(c *gin.Context)
+	Login(c *gin.Context)
 }
 
 type UserManagement interface {
