@@ -8,23 +8,21 @@ import (
 	"go.uber.org/zap"
 )
 
-type RedisCli redis.Client
-
 const (
-	serversHashKey       = "acc:hash:servers" // 全部的服务器
-	serversHashCacheTime = 2 * 60 * 60        // key过期时间
-	serversHashTimeout   = 3 * 60             // 超时时间
+	ServersHashKey       = "acc:hash:servers" // 全部的服务器
+	ServersHashCacheTime = 2 * 60 * 60        // key过期时间
+	ServersHashTimeout   = 3 * 60             // 超时时间
 )
 
-func NewRedisCli(logger *zap.Logger, config *config.Config) (redisClient *RedisCli) {
+func NewRedisCli(logger *zap.Logger, config *config.Config) (redisClient *redis.Client) {
 	redisConf := config.Redis
-	redisClient = (*RedisCli)(redis.NewClient(&redis.Options{
+	redisClient = redis.NewClient(&redis.Options{
 		Addr:         redisConf.Addr,
 		Password:     redisConf.Password,
 		DB:           redisConf.DB,
 		PoolSize:     redisConf.PoolSize,
 		MinIdleConns: redisConf.MinIdleConns,
-	}))
+	})
 
 	pong, err := redisClient.Ping(context.Background()).Result()
 	//fmt.Println("初始化redis:", pong, err)
@@ -36,7 +34,7 @@ func NewRedisCli(logger *zap.Logger, config *config.Config) (redisClient *RedisC
 	// Output: PONG <nil>
 }
 
-func (cli *RedisCli) getServersHashKey() (key string) {
-	key = fmt.Sprintf("%s", serversHashKey)
+func GetServersHashKey() (key string) {
+	key = fmt.Sprintf("%s", ServersHashKey)
 	return key
 }

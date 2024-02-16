@@ -17,7 +17,3 @@ type UserOnline interface {
 	LogOut()
 	IsOnline() (online bool)
 }
-
-type Server interface {
-	ServerString() (str string)
-}

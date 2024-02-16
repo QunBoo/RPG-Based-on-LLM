@@ -30,6 +30,12 @@ type Config struct {
 		PoolSize     int
 		MinIdleConns int
 	}
+	Mysql struct {
+		Addr     string
+		Username string
+		Password string
+		DBName   string
+	}
 }
 
 func GetConfig() *Config {

@@ -98,3 +98,30 @@ func (h *Head) String() (headStr string) {
 func NewResponse(code uint32, codeMsg string, data interface{}) *Response {
 	return &Response{Code: code, CodeMsg: codeMsg, Data: data}
 }
+
+//rsp Msg
+
+type JsonResult struct {
+	Code uint32      `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
+}
+
+func ResponseMsg(code uint32, message string, data interface{}) JsonResult {
+
+	message = GetErrorMessage(code, message)
+	jsonMap := grantMap(code, message, data)
+
+	return jsonMap
+}
+
+// 按照接口格式生成原数据数组
+func grantMap(code uint32, message string, data interface{}) JsonResult {
+
+	jsonMap := JsonResult{
+		Code: code,
+		Msg:  message,
+		Data: data,
+	}
+	return jsonMap
+}

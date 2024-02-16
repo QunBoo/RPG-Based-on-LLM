@@ -3,13 +3,15 @@ package WebSocket
 import (
 	"FantasticLife/utils"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"sync"
 	"time"
 )
 
 const (
-	defaultAppId = 101 // 默认平台Id
+	DefaultAppId = 101 // 默认平台Id
 )
 
 type DisposeFunc func(client *Client, seq string, message []byte) (code uint32, msg string, data interface{})
@@ -28,9 +30,11 @@ type ClientManager struct {
 	HandlersRWMutex sync.RWMutex
 	appIds          []uint32
 	logger          *zap.Logger
+	RedisCli        *redis.Client
+	MysqlCli        *gorm.DB
 }
 
-func NewClientManager(logger *zap.Logger) (clientManager *ClientManager) {
+func NewClientManager(logger *zap.Logger, RedisCli *redis.Client, MysqlCli *gorm.DB) (clientManager *ClientManager) {
 	clientManager = &ClientManager{
 		Clients:         make(map[*Client]bool),
 		Users:           make(map[string]*Client),
@@ -40,8 +44,10 @@ func NewClientManager(logger *zap.Logger) (clientManager *ClientManager) {
 		Broadcast:       make(chan []byte, 1000),
 		Handlers:        make(map[string]DisposeFunc),
 		HandlersRWMutex: sync.RWMutex{},
-		appIds:          []uint32{defaultAppId, 102, 103, 104},
+		appIds:          []uint32{DefaultAppId, 102, 103, 104},
 		logger:          logger,
+		RedisCli:        RedisCli,
+		MysqlCli:        MysqlCli,
 	}
 	clientManager.Register("login", LoginController)
 	clientManager.Register("heartbeat", HeartbeatController)
@@ -442,6 +448,7 @@ func (manager *ClientManager) SendUserMessageAll(appId uint32, userId string, ms
 		manager.logger.Error("给全体用户发消息", zap.Error(err))
 		return
 	}
+	data := utils.GetMsgData(userId, msgId, cmd, message)
 
 	//for _, server := range servers {
 	//	if IsLocal(server) {
@@ -452,7 +459,7 @@ func (manager *ClientManager) SendUserMessageAll(appId uint32, userId string, ms
 	//	}
 	//}
 	ignoreClient := manager.GetUserClient(appId, userId)
-	manager.sendAppIdAll([]byte(message), appId, ignoreClient)
+	manager.sendAppIdAll([]byte(data), appId, ignoreClient)
 	return sendResults, err
 }
 

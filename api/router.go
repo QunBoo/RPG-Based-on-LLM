@@ -4,6 +4,7 @@ import (
 	"FantasticLife/config"
 	"FantasticLife/server"
 	"FantasticLife/services"
+	"FantasticLife/services/servicesimpl"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 	"net/http"
@@ -20,9 +21,14 @@ type Router struct {
 
 func (r *Router) Handler() http.Handler {
 	engine := gin.New()
+	engine.LoadHTMLGlob("views/**/*")
 	engine.Use(gin.Recovery(), r.CorsMiddleware)
+	//engine.Use(utils.AuthenticateJWT())    //使用JWT验证
 	engine.Use(gin.Recovery(), r.ZapLogger)
 	{
+		engine.GET("/", func(c *gin.Context) {
+			c.Redirect(http.StatusMovedPermanently, "/api/v1/index")
+		})
 		apiV1 := engine.Group("api/v1")
 		{
 			apiV1.GET("/", func(c *gin.Context) {
@@ -31,11 +37,15 @@ func (r *Router) Handler() http.Handler {
 					"message": "Hello, World!",
 				})
 			})
+			apiV1.GET("/index", servicesimpl.Index)
 			apiV1.GET("userList", r.ChatSession.GetUserList)
 			apiV1.POST("ChatSessionSendMessageAll", r.ChatSession.ChatSessionSendMessageAll)
 			apiV1.POST("completionsTest", r.LLMBotServer.SpeakToBot_server)
 			apiV1.POST("ChatInit", r.ChatSession.InitSession)
 			apiV1.POST("completions", r.ChatSession.SendMessageToBot)
+			apiV1.POST("ChatSendMessage", r.ChatSession.ChatSendMessageMQ)
+			apiV1.POST("signUp", r.ChatSession.SignUp)
+			apiV1.POST("login", r.ChatSession.Login)
 		}
 
 	}
