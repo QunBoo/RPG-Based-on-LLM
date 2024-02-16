@@ -5,9 +5,15 @@ import (
 	"FantasticLife/server/serverimpl/WebSocket"
 	"FantasticLife/services"
 	"FantasticLife/utils"
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/IBM/sarama"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"io"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -16,11 +22,58 @@ type ChatSessionServiceImpl struct {
 	ChatSessionList map[string]*ChatSession
 	ClientManager   *WebSocket.ClientManager
 	logger          *zap.Logger
+	Producer        sarama.SyncProducer
+	ConsumerGroup   sarama.ConsumerGroup
 }
 type ChatSession struct {
 	ChatSessionId string
 	ChatHistory   []map[string]string
 	LLMBOTInter   server.LLMBOT
+}
+
+func (s *ChatSessionServiceImpl) ChatSendMessageMQ(c *gin.Context) {
+	var input struct {
+		SessionId string `json:"sessionId"`
+		Messages  string `json:"messages"`
+	}
+	// 从请求中读取 JSON 数据
+	if err := c.BindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	//如果不存在SessionId，则输出错误，返回，打印当前的ChatSessionList
+	if _, ok := s.ChatSessionList[input.SessionId]; !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "SessionId not exist!", "SessionId": input.SessionId})
+		s.logger.Info("SendMessageToBot", zap.Any("ChatSessionList", s.ChatSessionList))
+		return
+	}
+
+	//	将Message发送到MQ
+	msg := &sarama.ProducerMessage{
+		Topic: "chat",
+		Value: sarama.StringEncoder(input.Messages),
+	}
+	partition, offset, err := s.Producer.SendMessage(msg)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	s.logger.Info("ChatSendMessageMQ", zap.Any("log", fmt.Sprintf("Message is stored in topic(%s)/partition(%d)/offset(%d)\n", "chat", partition, offset)))
+
+}
+func (s *ChatSessionServiceImpl) ChatGetMQMessage() {
+	ctx := context.Background()
+	handler := ExampleConsumerGroupHandler{
+		CSImplP: s,
+	}
+	group := s.ConsumerGroup
+	// 消费者组循环，确保在消费者出错时可以重新加入
+	for {
+		if err := group.Consume(ctx, []string{"chat"}, handler); err != nil {
+			log.Printf("Error from consumer: %v", err)
+		}
+	}
+
 }
 
 // 和Bot的交互功能
@@ -45,6 +98,7 @@ func (s *ChatSessionServiceImpl) SendMessageToBot(c *gin.Context) {
 		"role":    "user",
 		"content": input.Messages,
 	})
+	//s.logger.Info("SendMessageToBot0", zap.Any("ChatHistory", TempChatSessionP.ChatHistory))
 	respMessage := TempChatSessionP.LLMBOTInter.SpeakToBot(c, TempChatSessionP.ChatHistory)
 	TempChatSessionP.ChatHistory = append(TempChatSessionP.ChatHistory, map[string]string{
 		"role":    "assistant",
@@ -54,16 +108,29 @@ func (s *ChatSessionServiceImpl) SendMessageToBot(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": respMessage,
 	})
-	//s.BotInter.SpeakToBot(c, modifiedMessage)
+	//通过调用sendMessageAll函数，将消息发送给所有用户
+	userId := "小助手"
+	msgId := "msgId"
+	_, err := s.ClientManager.SendUserMessageAll(101, userId, msgId, utils.MessageCmdMsg, respMessage)
+	if err != nil {
+		return
+	}
 }
 func (s *ChatSessionServiceImpl) InitSession(c *gin.Context) {
 	var input struct {
-		SessionId string `json:"session_id"`
+		SessionId string `json:"sessionId"`
 	}
 	// 从请求中读取 JSON 数据
 	if err := c.BindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+	//如果不存在SessionId，则输出错误，返回，打印当前的ChatSessionList
+	if _, ok := s.ChatSessionList[input.SessionId]; !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "SessionId not exist!", "SessionId": input.SessionId})
+		s.logger.Info("InitSession", zap.Any("ChatSessionList", s.ChatSessionList))
+		return
+
 	}
 	// 初始化，Session置零
 	TempChatSessionP := s.ChatSessionList[input.SessionId]
@@ -194,6 +261,7 @@ func (s *ChatSessionServiceImpl) SignUp(c *gin.Context) {
 	return
 
 }
+
 func (s *ChatSessionServiceImpl) ChatSessionSendMessageAll(c *gin.Context) {
 	// 获取参数
 	appIdStr := c.PostForm("appId")
@@ -234,11 +302,78 @@ func NewChatSession(llmbot server.LLMBOT) *ChatSession {
 func NewChatSessionService(zapLogger *zap.Logger, defaultSesstion *ChatSession, ClientManager *WebSocket.ClientManager) services.ChatSessionService {
 	SessionList := make(map[string]*ChatSession)
 	SessionList["Default"] = defaultSesstion
+	config := sarama.NewConfig()
+	config.Producer.RequiredAcks = sarama.WaitForAll // 确保消息被写入所有副本后才认为是成功的
+	config.Producer.Retry.Max = 5                    // 最大重试次数
+	config.Producer.Return.Successes = true
+
+	producer, err := sarama.NewSyncProducer([]string{"8.141.81.87:9092"}, config)
+	if err != nil {
+		zapLogger.Fatal("Failed to start Sarama producer:", zap.Error(err))
+
+	}
+	configCon := sarama.NewConfig()
+	configCon.Version = sarama.V2_0_0_0 // 确保版本兼容
+	configCon.Consumer.Return.Errors = true
+	configCon.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+	configCon.Consumer.Offsets.Initial = sarama.OffsetOldest // 从最早的消息开始消费
+
+	ConsumerGroup, err := sarama.NewConsumerGroup([]string{"8.141.81.87:9092"}, "your_consumer_group_id", config)
+	if err != nil {
+		zapLogger.Fatal("Error creating consumer group:", zap.Error(err))
+
+	}
 	CSService := ChatSessionServiceImpl{
 		ChatSessionList: SessionList,
 		ClientManager:   ClientManager,
 		logger:          zapLogger,
+		Producer:        producer,
+		ConsumerGroup:   ConsumerGroup,
 	}
 
+	go CSService.ChatGetMQMessage() //开启一个协程，监听MQ消息
+
 	return &CSService
+}
+
+// ExampleConsumerGroupHandler represents a Sarama consumer group consumer
+type ExampleConsumerGroupHandler struct {
+	CSImplP *ChatSessionServiceImpl
+}
+
+func (ExampleConsumerGroupHandler) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
+func (ExampleConsumerGroupHandler) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
+func (h ExampleConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for msg := range claim.Messages() {
+		log.Printf("Message claimed: value = %s, timestamp = %v, topic = %s", string(msg.Value), msg.Timestamp, msg.Topic)
+		sess.MarkMessage(msg, "") // 标记消息为已处理
+
+		SessionId := "Default"
+		Messages := string(msg.Value)
+		var inputData struct {
+			SessionId string `json:"sessionId"`
+			Messages  string `json:"Messages"`
+		}
+		inputData.SessionId = SessionId
+		inputData.Messages = Messages
+		data, _ := json.Marshal(inputData)
+
+		// 发送请求, 注意当部署到服务器上时，需要将ip地址改为服务器的外网ip地址
+		resp, err := http.Post("http://127.0.0.1:8080/api/v1/completions", "application/json", bytes.NewBuffer(data))
+		if err != nil {
+			fmt.Println("Error:", err)
+			return nil
+		}
+		defer resp.Body.Close()
+
+		// 读取响应
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return nil
+		}
+
+		fmt.Println("<<<< resp From MQ", string(body))
+	}
+	return nil
 }

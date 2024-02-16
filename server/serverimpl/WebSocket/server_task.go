@@ -2,6 +2,7 @@ package WebSocket
 
 import (
 	"FantasticLife/server/serverimpl/task"
+	"FantasticLife/utils"
 	"fmt"
 	"go.uber.org/zap"
 	"runtime/debug"
@@ -23,7 +24,7 @@ func (manager *ClientManager) server(param interface{}) (result bool) {
 		}
 	}()
 
-	server := NewServer(manager.ServerIp, manager.ServerPort)
+	server := NewServer(utils.GetServerIp(), "8080")
 	currentTime := uint64(time.Now().Unix())
 	fmt.Println("定时任务，服务注册", param, server, currentTime)
 
@@ -46,7 +47,7 @@ func (manager *ClientManager) serverDefer(param interface{}) (result bool) {
 
 	fmt.Println("服务下线", param)
 
-	server := NewServer(manager.ServerIp, manager.ServerPort)
+	server := NewServer(utils.GetServerIp(), "8080")
 	err := manager.DelServerInfo(server)
 	if err != nil {
 		manager.logger.Error("服务下线错误", zap.Error(err), zap.Any("server", server), zap.Any("param", param))

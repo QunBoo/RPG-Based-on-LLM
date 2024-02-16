@@ -30,8 +30,11 @@ RUN --mount=type=cache,target=/var/cache/apk --mount=type=cache,target=/etc/apk/
 
 # 从构建环境复制server二进制文件
 COPY --from=build-env /bin/server /server
-# 从构建环境复制配置文件
+# 从构建环境复制配置文件和jsp文件
 COPY --from=build-env /workspace/config/config.yaml /workspace/config/
+COPY --from=build-env /workspace/views /workspace/views
+
+WORKDIR /workspace
 
 ENV GIN_MODE=release
 EXPOSE 8080

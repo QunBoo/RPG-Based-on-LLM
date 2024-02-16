@@ -35,6 +35,7 @@ func Index(c *gin.Context) {
 	// }
 	//Docker serverIp需要在参数中添加
 	//serverIp := os.Getenv("HOST_IP")
+	//serverIp := "myServerIP"
 	serverIp := "127.0.0.1"
 	httpPort := viper.GetString("app.HttpPort")
 	httpUrl_out := serverIp + ":" + httpPort

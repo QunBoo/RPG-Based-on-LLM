@@ -43,6 +43,7 @@ func (r *Router) Handler() http.Handler {
 			apiV1.POST("completionsTest", r.LLMBotServer.SpeakToBot_server)
 			apiV1.POST("ChatInit", r.ChatSession.InitSession)
 			apiV1.POST("completions", r.ChatSession.SendMessageToBot)
+			apiV1.POST("ChatSendMessage", r.ChatSession.ChatSendMessageMQ)
 			apiV1.POST("signUp", r.ChatSession.SignUp)
 			apiV1.POST("login", r.ChatSession.Login)
 		}

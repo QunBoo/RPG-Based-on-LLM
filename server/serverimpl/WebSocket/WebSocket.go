@@ -2,6 +2,7 @@ package WebSocket
 
 import (
 	"FantasticLife/config"
+	"FantasticLife/utils"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 	"net/http"
@@ -16,7 +17,7 @@ type WebSocketManager struct {
 // 启动websocket服务器程序，设定serverPort和webSocketPort
 func StartWebSocket(config *config.Config, clientManager *ClientManager, logger *zap.Logger) {
 
-	serverIp := clientManager.ServerIp
+	serverIp := utils.GetServerIp()
 	app := config.App
 	webSocketPort := app.WebSocketPort
 	rpcPort := app.RpcPort

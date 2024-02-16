@@ -270,7 +270,7 @@
                <a href="/api/v1/index?appId=101">聊天室-Id:101</a>
                <a href="/api/v1/index?appId=102">聊天室-Id:102</a>
                <a href="/api/v1/index?appId=103">聊天室-Id:103</a>
-               <a href="/api/v1/index?appId=104">聊天室-啊啊啊</a>
+               <a href="/api/v1/index?appId=104">聊天室-Id:104</a>
            </div>
         </div>
 
