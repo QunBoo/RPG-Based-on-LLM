@@ -16,6 +16,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
 )
 
 type ChatSessionServiceImpl struct {
@@ -263,6 +265,35 @@ func (s *ChatSessionServiceImpl) SignUp(c *gin.Context) {
 }
 
 func (s *ChatSessionServiceImpl) ChatSessionSendMessageAll(c *gin.Context) {
+	var wg sync.WaitGroup
+	var gofunc func(msg string)
+	gofunc = func(msg string) {
+		defer wg.Done()
+		SessionId := "Default"
+		Messages := msg
+		var inputData struct {
+			SessionId string `json:"sessionId"`
+			Messages  string `json:"Messages"`
+		}
+		inputData.SessionId = SessionId
+		inputData.Messages = Messages
+		data, _ := json.Marshal(inputData)
+
+		// 发送请求, 注意当部署到服务器上时，需要将ip地址改为服务器的外网ip地址
+		resp, err := http.Post("http://127.0.0.1:8080/api/v1/completions", "application/json", bytes.NewBuffer(data))
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
+		defer resp.Body.Close()
+
+		// 读取响应
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
+
+		fmt.Println("<<<< resp From MQ", string(body))
+	}
 	// 获取参数
 	appIdStr := c.PostForm("appId")
 	userId := c.PostForm("userId")
@@ -274,12 +305,12 @@ func (s *ChatSessionServiceImpl) ChatSessionSendMessageAll(c *gin.Context) {
 	fmt.Println("http_request 给全体用户发送消息", appIdStr, userId, msgId, message)
 
 	data := make(map[string]interface{})
-	//if cache.SeqDuplicates(msgId) {
-	//	fmt.Println("给用户发送消息 重复提交:", msgId)
-	//	controllers.Response(c, common.OK, "", data)
-	//
-	//	return
-	//}
+
+	//如果message中包括"@小助手"，则自动调用SendMessageToBot函数
+	if strings.Contains(message, "@小助手") {
+		wg.Add(1)
+		go gofunc(message)
+	}
 
 	sendResults, err := s.ClientManager.SendUserMessageAll(appId, userId, msgId, utils.MessageCmdMsg, message)
 	if err != nil {
@@ -287,6 +318,7 @@ func (s *ChatSessionServiceImpl) ChatSessionSendMessageAll(c *gin.Context) {
 	}
 
 	data["sendResults"] = sendResults
+	//wg.Wait()
 
 	Response(c, utils.OK, "", data)
 }
